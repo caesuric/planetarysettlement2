@@ -116,26 +116,35 @@ class MainHandler(tornado.web.RequestHandler):
         self.render("main.html")
 class MainSocketHandler(tornado.websocket.WebSocketHandler):
     waiters = set()
+    game_numbers = []
     games = []
-    game = None
     def open(self):
         MainSocketHandler.waiters.add(self)
         self.username = self.get_secure_cookie("username")
         self.game_id = self.get_secure_cookie("game_id")
-        if self.game_id not in self.games:
-            self.games.append(self.game_id)
+        if self.game_id not in self.game_numbers:
+            self.game_numbers.append(self.game_id)
             self.game = Game(self.game_id)
+            self.games.append(self.game)
+            tornado.ioloop.IOLoop.current().add_timeout(datetime.timedelta(seconds=1),self.start_game)
+        else:
+            for i in self.games:
+                if i.game_id==self.game_id:
+                    self.game=i
     def on_close(self):
         MainSocketHandler.waiters.remove(self)
     def on_message(self,message):
         parsed = tornado.escape.json_decode(message)
+    def start_game(self):
+        self.game.start()
 class Game():
     waiters = []
     def __init__(self,game_id):
         self.game_id = game_id
+    def start(self):
         for i in MainSocketHandler.waiters:
-            if i.game_id==game_id:
-               self.waiters.append(i)
+            if i.game_id==self.game_id:
+                self.waiters.append(i)
         random.shuffle(self.waiters)
         self.tile_types = self.initiate_tile_types()
         self.upgrade_types = self.initiate_upgrade_types()
@@ -263,15 +272,16 @@ class Game():
                 trigger_upgrade_on_turn_begins(i)
     def lay_tiles(self):
         self.push_updates()
-        for i in self.waiters:
+        for i in self.players:
             if i.is_first_player==True:
                 self.push_message(i,"Place the tile as desired.")
                 self.push_tile_lay(i,self.stack_tiles.remove)
             else:
                 self.push_message(i,"Other player laying tiles.")
-    #TODO: STUB
     def push_updates(self):
-        pass
+        for waiter in self.waiters:
+			waiter.write_message({"id": str(uuid.uuid4()), "message": "push_update", "upgrades_available": self.upgrades_available, "table_tiles": serialize_2d_list(self.table_tiles),
+								  "players": serialize_list(self.players)})
     #TODO: STUB
     def push_message(self,client,message):
         pass
@@ -370,9 +380,11 @@ class Tile():
         self.metal = 0
         self.rare_metal = 0
         self.water = 0
-        self.worker_placed = []
+        self.worker_placed = -1
         self.city_online_status = 0 #0 = not online, 1 = tile brought online, 2 = entire city online
         self.counters = 0
+    def to_JSON(self):
+        return "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}".format(self.tile_type,self.tile_orientation,self.upgrade_built,self.upgrade_owner,self.electricity,self.information,self.metal,self.rare_metal,self.water,self.worker_placed,self.city_online_status,self.counters)
 class Player():
     def __init__(self):
         self.vp=0
@@ -386,6 +398,21 @@ class Player():
         self.workers_remaining=2
         self.total_workers=2
         self.handler = None
+    def to_JSON(self):
+        return "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10}".format(self.vp,self.electricity,self.information,self.metal,self.rare_metal,self.water,self.is_first_player,self.is_turn_to_place,self.workers_remaining,self.total_workers,self.handler.username)
+def serialize_list(list):
+    return_list = []
+    for i in list:
+        if i!=None:
+            return_list.append(i.to_JSON())
+        else:
+            return_list.append(None)
+    return return_list
+def serialize_2d_list(list):
+    return_list = []
+    for i in list:
+        return_list.append(serialize_list(i))
+    return return_list
 class TileType ():
     def __init__(self):
         self.facility_connection = [False,False,False,False]

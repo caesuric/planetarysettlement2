@@ -4,12 +4,106 @@ $(document).ready ->
     if !window.console.log
         window.console.log = ->
 
-    canvas = new fabric.StaticCanvas('my_canvas')
-    canvas.backgroundColor="black"
-    canvas.renderAll()
+    window.canvas = new fabric.StaticCanvas('my_canvas')
+    window.canvas.backgroundColor="black"
+    window.canvas.renderAll()
     updater.start()
-    tileTypes = initiateTileTypes()
-    upgradeTypes = initiateUpgradeTypes()
+    window.tileTypes = initiateTileTypes()
+    window.upgradeTypes = initiateUpgradeTypes()
+
+renderTable = (upgrades_available,table_tiles,players) ->
+    window.canvas.backgroundColor="black"
+    for i in [0..29]
+        for j in [0..29]
+            if table_tiles[i][j]!=null
+                x_pos = i*45
+                y_pos = j*45
+                window.canvas.add new fabric.Rect(left: x_pos, top: y_pos, height: 45, width: 45, stroke: 'white', fill: 'transparent', strokeWidth: 2)
+                tile_data = table_tiles[i][j].split(",")
+                tile_type = parseInt(tile_data[0],10)
+                tile_orientation = parseInt(tile_data[1],10)
+                tile_upgrade_built = parseInt(tile_data[2],10)
+                tile_upgrade_owner = parseInt(tile_data[3],10)
+                tile_electricity = parseInt(tile_data[4],10)
+                tile_information = parseInt(tile_data[5],10)
+                tile_metal = parseInt(tile_data[6],10)
+                tile_rare_metal = parseInt(tile_data[7],10)
+                tile_water = parseInt(tile_data[8],10)
+                tile_worker_placed = parseInt(tile_data[9],10)
+                tile_city_online_status = parseInt(tile_data[10],10)
+                tile_counters = parseInt(tile_data[11],10)
+                rotated = getRotatedTileType(tile_type,tile_orientation)
+                if tile_city_online_status==0
+                    city_color = 'rgba(128,128,128,1)'
+                else if tile_city_online_status==1
+                    city_color = 'rgba(0,224,0,1)'
+                else if tile_city_online_status==2
+                    city_color = 'rgba(0,64,255,1)'
+                if rotated.facilityConnection[1]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+                    if region_closed(get_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+                if rotated.cityConnection[1]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+                    if region_closed(get_city_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+                # if rotated.facilityConnection[2]==true
+                    # pygame.draw.lines(screen,(255,0,0),True,((x+45,y+45),(x+22,y+22),(x,y+45)),4)
+                    # if region_closed(get_region(i))==true
+                        # pygame.draw.polygon(screen,(255,0,0),[(x+45,y+45),(x+22,y+22),(x,y+45)])            
+                # if rotated.cityConnection[2]==true
+                    # pygame.draw.lines(screen,city_color,True,((x+45,y+45),(x+22,y+22),(x,y+45)),4)
+                    # if region_closed(get_city_region(i))==true
+                        # pygame.draw.polygon(screen,city_color,[(x+45,y+45),(x+22,y+22),(x,y+45)])            
+                # if rotated.facilityConnection[3]==true
+                    # pygame.draw.lines(screen,(255,0,0),True,((x,y),(x+22,y+22),(x,y+45)),4)
+                    # if region_closed(get_region(i))==true
+                        # pygame.draw.polygon(screen,(255,0,0),[(x,y),(x+22,y+22),(x,y+45)])            
+                # if rotated.cityConnection[3]==true
+                    # pygame.draw.lines(screen,city_color,True,((x,y),(x+22,y+22),(x,y+45)),4)
+                    # if region_closed(get_city_region(i))==true
+                        # pygame.draw.polygon(screen,city_color,[(x,y),(x+22,y+22),(x,y+45)])
+                # if rotated.facilityConnection[0]==true
+                    # pygame.draw.lines(screen,(255,0,0),True,((x,y),(x+22,y+22),(x+45,y)),4)
+                    # if region_closed(get_region(i))==true
+                        # pygame.draw.polygon(screen,(255,0,0),[(x,y),(x+22,y+22),(x+45,y)])            
+                # if rotated.cityConnection[0]==true
+                    # pygame.draw.lines(screen,city_color,True,((x,y),(x+22,y+22),(x+45,y)),4)
+                    # if region_closed(get_city_region(i))==true
+                        # pygame.draw.polygon(screen,city_color,[(x,y),(x+22,y+22),(x+45,y)])
+    canvas.renderAll()
+
+region_closed = (region) ->
+    # STUB
+    return true
+    
+get_region = (tile) ->
+    # STUB
+    return tile
+
+get_city_region = (tile) ->
+    # STUB
+    return tile
+    
+getRotatedTileType = (type,orientation) ->
+    tileType = new TileType
+    baseTileType = window.tileTypes[type]
+    for i in [0..3]
+        tileType.facilityConnection[i]=baseTileType.facilityConnection[getRotation(i-orientation)]
+        tileType.cityConnection[i]=baseTileType.cityConnection[getRotation(i-orientation)]
+    return tileType
+
+getRotation = (rotation) ->
+    if rotation>=0 and rotation<=3
+        return rotation
+    else if rotation>3
+        while rotation>3
+            rotation-=4
+        return rotation
+    else if rotation<0
+        while rotation<0
+            rotation+=4
+        return rotation
 
 updater = 
     socket: null
@@ -20,7 +114,13 @@ updater =
             updater.processMessage JSON.parse(event.data)
         updater.socket.onopen = updater.initialize
     processMessage: (message) ->
-		console.log('REACHED')
+        if message.message=='push_update'
+            updater.processPushUpdate(message)
+    processPushUpdate: (message) ->
+        upgrades_available = message.upgrades_available
+        table_tiles = message.table_tiles
+        players = message.players
+        renderTable(upgrades_available,table_tiles,players)
 
 class TileType
     constructor: () ->
