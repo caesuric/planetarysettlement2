@@ -47,30 +47,40 @@ renderTable = (upgrades_available,table_tiles,players) ->
                     window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
                     if region_closed(get_city_region(i))==true
                         window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
-                # if rotated.facilityConnection[2]==true
-                    # pygame.draw.lines(screen,(255,0,0),True,((x+45,y+45),(x+22,y+22),(x,y+45)),4)
-                    # if region_closed(get_region(i))==true
-                        # pygame.draw.polygon(screen,(255,0,0),[(x+45,y+45),(x+22,y+22),(x,y+45)])            
-                # if rotated.cityConnection[2]==true
-                    # pygame.draw.lines(screen,city_color,True,((x+45,y+45),(x+22,y+22),(x,y+45)),4)
-                    # if region_closed(get_city_region(i))==true
-                        # pygame.draw.polygon(screen,city_color,[(x+45,y+45),(x+22,y+22),(x,y+45)])            
-                # if rotated.facilityConnection[3]==true
-                    # pygame.draw.lines(screen,(255,0,0),True,((x,y),(x+22,y+22),(x,y+45)),4)
-                    # if region_closed(get_region(i))==true
-                        # pygame.draw.polygon(screen,(255,0,0),[(x,y),(x+22,y+22),(x,y+45)])            
-                # if rotated.cityConnection[3]==true
-                    # pygame.draw.lines(screen,city_color,True,((x,y),(x+22,y+22),(x,y+45)),4)
-                    # if region_closed(get_city_region(i))==true
-                        # pygame.draw.polygon(screen,city_color,[(x,y),(x+22,y+22),(x,y+45)])
-                # if rotated.facilityConnection[0]==true
-                    # pygame.draw.lines(screen,(255,0,0),True,((x,y),(x+22,y+22),(x+45,y)),4)
-                    # if region_closed(get_region(i))==true
-                        # pygame.draw.polygon(screen,(255,0,0),[(x,y),(x+22,y+22),(x+45,y)])            
-                # if rotated.cityConnection[0]==true
-                    # pygame.draw.lines(screen,city_color,True,((x,y),(x+22,y+22),(x+45,y)),4)
-                    # if region_closed(get_city_region(i))==true
-                        # pygame.draw.polygon(screen,city_color,[(x,y),(x+22,y+22),(x+45,y)])
+                if rotated.facilityConnection[2]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+                    if region_closed(get_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+                if rotated.cityConnection[2]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+                    if region_closed(get_city_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+                if rotated.facilityConnection[3]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                    if region_closed(get_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                if rotated.cityConnection[3]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                    if region_closed(get_city_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                if rotated.facilityConnection[0]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                    if region_closed(get_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                if rotated.cityConnection[0]==true
+                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                    if region_closed(get_city_region(i))==true
+                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+                if tile_electricity>0
+                    window.canvas.add new fabric.Text(tile_electricity.toString(), left: x_pos+2, top: y_pos+2, fill: 'rgba(255,255,0,1)', fontSize: 15)
+                if tile_water>0
+                    window.canvas.add new fabric.Text(tile_water.toString(), left: x_pos+18, top: y_pos+2, fill: 'rgba(0,255,255,1)', fontSize: 15)                
+                if tile_information>0
+                    window.canvas.add new fabric.Text(tile_information.toString(), left: x_pos+33, top: y_pos+2, fill: 'rgba(0,224,0,1)', fontSize: 15)
+                if tile_metal>0
+                    window.canvas.add new fabric.Text(tile_metal.toString(), left: x_pos+2, top: y_pos+18, fill: 'rgba(128,128,128,1)', fontSize: 15)
+                if tile_rare_metal>0
+                    window.canvas.add new fabric.Text(tile_rare_metal.toString(), left: x_pos+18, top: y_pos+18, fill: 'rgba(255,128,0,1)', fontSize: 15)
     canvas.renderAll()
 
 region_closed = (region) ->
