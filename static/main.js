@@ -17,8 +17,8 @@
     return window.upgradeTypes = initiateUpgradeTypes();
   });
 
-  renderTable = function(upgrades_available, table_tiles, players) {
-    var city_color, i, j, k, l, rotated, tile_city_online_status, tile_counters, tile_data, tile_electricity, tile_information, tile_metal, tile_orientation, tile_rare_metal, tile_type, tile_upgrade_built, tile_upgrade_owner, tile_water, tile_worker_placed, x_pos, y_pos;
+  renderTable = function(upgrades_available, table_tiles, players, username) {
+    var city_color, color, i, j, k, l, m, playerNumber, player_data, player_electricity, player_information, player_metal, player_rare_metal, player_total_workers, player_vp, player_water, player_workers_remaining, ref, rotated, tile_city_online_status, tile_counters, tile_data, tile_electricity, tile_information, tile_metal, tile_orientation, tile_rare_metal, tile_type, tile_upgrade_built, tile_upgrade_owner, tile_water, tile_worker_placed, x_pos, y_pos;
     window.canvas.backgroundColor = "black";
     for (i = k = 0; k <= 29; i = ++k) {
       for (j = l = 0; l <= 29; j = ++l) {
@@ -431,9 +431,145 @@
               fontSize: 15
             }));
           }
+          if (tile_counters > 0) {
+            window.canvas.add(new fabric.Text(tile_counters.toString(), {
+              left: x_pos + 33,
+              top: y_pos + 33,
+              fill: 'rgba(255,255,255,1)',
+              fontSize: 15
+            }));
+          }
+          if (tile_type === 11 || tile_type === 19) {
+            window.canvas.add(new fabric.Text('W', {
+              left: x_pos + 18,
+              top: y_pos + 18,
+              fill: 'rgba(255,255,255,1)',
+              fontSize: 22
+            }));
+          }
+          if (tile_type === 12 || tile_type === 20) {
+            window.canvas.add(new fabric.Text('D', {
+              left: x_pos + 18,
+              top: y_pos + 18,
+              fill: 'rgba(255,255,255,1)',
+              fontSize: 22
+            }));
+          }
+          if (tile_type === 13 || tile_type === 21) {
+            window.canvas.add(new fabric.Text('U', {
+              left: x_pos + 18,
+              top: y_pos + 18,
+              fill: 'rgba(255,255,255,1)',
+              fontSize: 22
+            }));
+          }
+          if (tile_type === 14 || tile_type === 22) {
+            window.canvas.add(new fabric.Circle({
+              left: x_pos + 27,
+              top: y_pos + 27,
+              radius: 9,
+              fill: 'rgba(255,255,0,1)',
+              stroke: 'rgba(255,255,0,1)'
+            }));
+          }
+          if (tile_type === 15 || tile_type === 23) {
+            window.canvas.add(new fabric.Circle({
+              left: x_pos + 27,
+              top: y_pos + 27,
+              radius: 9,
+              fill: 'rgba(0,255,255,1)',
+              stroke: 'rgba(0,255,255,1)'
+            }));
+          }
+          if (tile_type === 16 || tile_type === 24) {
+            window.canvas.add(new fabric.Circle({
+              left: x_pos + 27,
+              top: y_pos + 27,
+              radius: 9,
+              fill: 'rgba(0,224,0,1)',
+              stroke: 'rgba(0,224,0,1)'
+            }));
+          }
+          if (tile_type === 17 || tile_type === 25) {
+            window.canvas.add(new fabric.Circle({
+              left: x_pos + 27,
+              top: y_pos + 27,
+              radius: 9,
+              fill: 'rgba(128,128,128,1)',
+              stroke: 'rgba(128,128,128,1)'
+            }));
+          }
+          if (tile_type === 18 || tile_type === 26) {
+            window.canvas.add(new fabric.Circle({
+              left: x_pos + 27,
+              top: y_pos + 27,
+              radius: 9,
+              fill: 'rgba(255,128,0,1)',
+              stroke: 'rgba(255,128,0,1)'
+            }));
+          }
+          switch (tile_worker_placed) {
+            case 0:
+              color = 'rgba(64,64,255,1)';
+              break;
+            case 1:
+              color = 'rgba(255,64,64,1)';
+              break;
+            case 2:
+              color = 'rgba(64,255,64,1)';
+              break;
+            case 3:
+              color = 'rgba(255,255,64,1)';
+              break;
+            default:
+              color = -1;
+          }
+          if (color !== -1) {
+            window.canvas.add(new fabric.Circle({
+              left: x_pos,
+              top: y_pos,
+              radius: 15,
+              fill: color,
+              stroke: color
+            }));
+          }
+          if (tile_upgrade_built > -1) {
+            window.canvas.add(new fabric.Text('u', {
+              left: x_pos + 18,
+              top: y_pos + 26,
+              fill: 'rgba(255,255,255,1)',
+              fontSize: 22
+            }));
+          }
         }
       }
     }
+    playerNumber = 0;
+    for (i = m = 0, ref = players.length - 1; 0 <= ref ? m <= ref : m >= ref; i = 0 <= ref ? ++m : --m) {
+      player_data = players[i].split(",");
+      if (player_data[10] === username) {
+        playerNumber = i;
+      }
+    }
+    player_data = players[playerNumber].split(",");
+    player_vp = player_data[0];
+    player_electricity = player_data[1];
+    player_information = player_data[2];
+    player_metal = player_data[3];
+    player_rare_metal = player_data[4];
+    player_water = player_data[5];
+    player_workers_remaining = player_data[8];
+    player_total_workers = player_data[9];
+    document.getElementById('player_name').innerHTML = username;
+    document.getElementById('vp').innerHTML = player_vp;
+    document.getElementById('electricity').innerHTML = player_electricity;
+    document.getElementById('information').innerHTML = player_information;
+    document.getElementById('metal').innerHTML = player_metal;
+    document.getElementById('rare_metal').innerHTML = player_rare_metal;
+    document.getElementById('water').innerHTML = player_water;
+    document.getElementById('total').innerHTML = parseInt(player_electricity, 10) + parseInt(player_information, 10) + parseInt(player_metal, 10) + parseInt(player_rare_metal, 10) + parseInt(player_water, 10);
+    document.getElementById('workers').innerHTML = player_workers_remaining;
+    document.getElementById('total_workers').innerHTML = player_total_workers;
     return canvas.renderAll();
   };
 
@@ -493,11 +629,12 @@
       }
     },
     processPushUpdate: function(message) {
-      var players, table_tiles, upgrades_available;
+      var players, table_tiles, upgrades_available, username;
       upgrades_available = message.upgrades_available;
       table_tiles = message.table_tiles;
       players = message.players;
-      return renderTable(upgrades_available, table_tiles, players);
+      username = message.username;
+      return renderTable(upgrades_available, table_tiles, players, username);
     }
   };
 

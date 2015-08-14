@@ -11,7 +11,7 @@ $(document).ready ->
     window.tileTypes = initiateTileTypes()
     window.upgradeTypes = initiateUpgradeTypes()
 
-renderTable = (upgrades_available,table_tiles,players) ->
+renderTable = (upgrades_available,table_tiles,players,username) ->
     window.canvas.backgroundColor="black"
     for i in [0..29]
         for j in [0..29]
@@ -81,6 +81,58 @@ renderTable = (upgrades_available,table_tiles,players) ->
                     window.canvas.add new fabric.Text(tile_metal.toString(), left: x_pos+2, top: y_pos+18, fill: 'rgba(128,128,128,1)', fontSize: 15)
                 if tile_rare_metal>0
                     window.canvas.add new fabric.Text(tile_rare_metal.toString(), left: x_pos+18, top: y_pos+18, fill: 'rgba(255,128,0,1)', fontSize: 15)
+                if tile_counters>0
+                    window.canvas.add new fabric.Text(tile_counters.toString(), left: x_pos+33, top: y_pos+33, fill: 'rgba(255,255,255,1)', fontSize: 15)
+                if tile_type==11 or tile_type==19
+                    window.canvas.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
+                if tile_type==12 or tile_type==20
+                    window.canvas.add new fabric.Text('D', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
+                if tile_type==13 or tile_type==21
+                    window.canvas.add new fabric.Text('U', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
+                if tile_type==14 or tile_type==22
+                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,255,0,1)', stroke: 'rgba(255,255,0,1)')
+                if tile_type==15 or tile_type==23
+                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(0,255,255,1)', stroke: 'rgba(0,255,255,1)')
+                if tile_type==16 or tile_type==24
+                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(0,224,0,1)', stroke: 'rgba(0,224,0,1)')
+                if tile_type==17 or tile_type==25
+                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(128,128,128,1)', stroke: 'rgba(128,128,128,1)')
+                if tile_type==18 or tile_type==26
+                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,128,0,1)', stroke: 'rgba(255,128,0,1)')
+                switch tile_worker_placed
+                    when 0 then color='rgba(64,64,255,1)'
+                    when 1 then color='rgba(255,64,64,1)'
+                    when 2 then color='rgba(64,255,64,1)'
+                    when 3 then color='rgba(255,255,64,1)'
+                    else color=-1
+                if color!=-1
+                    window.canvas.add new fabric.Circle(left: x_pos, top: y_pos, radius: 15, fill: color, stroke: color)
+                if tile_upgrade_built>-1
+                    window.canvas.add new fabric.Text('u', left: x_pos+18, top: y_pos+26, fill: 'rgba(255,255,255,1)', fontSize: 22)
+    playerNumber = 0
+    for i in [0..players.length-1]
+        player_data = players[i].split(",")
+        if player_data[10]==username
+            playerNumber=i
+    player_data = players[playerNumber].split(",")
+    player_vp = player_data[0]
+    player_electricity = player_data[1]
+    player_information = player_data[2]
+    player_metal = player_data[3]
+    player_rare_metal = player_data[4]
+    player_water = player_data[5]
+    player_workers_remaining = player_data[8]
+    player_total_workers = player_data[9]
+    document.getElementById('player_name').innerHTML=username
+    document.getElementById('vp').innerHTML=player_vp
+    document.getElementById('electricity').innerHTML=player_electricity
+    document.getElementById('information').innerHTML=player_information
+    document.getElementById('metal').innerHTML=player_metal
+    document.getElementById('rare_metal').innerHTML=player_rare_metal
+    document.getElementById('water').innerHTML=player_water
+    document.getElementById('total').innerHTML=parseInt(player_electricity,10)+parseInt(player_information,10)+parseInt(player_metal,10)+parseInt(player_rare_metal,10)+parseInt(player_water,10)
+    document.getElementById('workers').innerHTML=player_workers_remaining
+    document.getElementById('total_workers').innerHTML=player_total_workers
     canvas.renderAll()
 
 region_closed = (region) ->
@@ -130,7 +182,8 @@ updater =
         upgrades_available = message.upgrades_available
         table_tiles = message.table_tiles
         players = message.players
-        renderTable(upgrades_available,table_tiles,players)
+        username = message.username
+        renderTable(upgrades_available,table_tiles,players,username)
 
 class TileType
     constructor: () ->
