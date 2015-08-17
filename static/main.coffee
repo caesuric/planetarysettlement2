@@ -11,6 +11,11 @@ $(document).ready ->
     window.tileTypes = initiateTileTypes()
     window.upgradeTypes = initiateUpgradeTypes()
 
+upgradeMouseOver = (upgrade_id) ->
+    document.getElementById('upgrade_float_text').innerHTML=window.upgradeTypes[upgrade_id].name
+upgradeMouseOff = () ->
+    document.getElementById('upgrade_float_text').innerHTML=''
+
 renderTable = (upgrades_available,table_tiles,players,username) ->
     window.canvas.backgroundColor="black"
     for i in [0..29]
@@ -133,7 +138,45 @@ renderTable = (upgrades_available,table_tiles,players,username) ->
     document.getElementById('total').innerHTML=parseInt(player_electricity,10)+parseInt(player_information,10)+parseInt(player_metal,10)+parseInt(player_rare_metal,10)+parseInt(player_water,10)
     document.getElementById('workers').innerHTML=player_workers_remaining
     document.getElementById('total_workers').innerHTML=player_total_workers
+    for i in [0..players.length-1]
+        if i!=playerNumber
+            player_data=players[i].split(",")
+            player_vp = player_data[0]
+            player_electricity = player_data[1]
+            player_information = player_data[2]
+            player_metal = player_data[3]
+            player_rare_metal = player_data[4]
+            player_water = player_data[5]
+            player_total = parseInt(player_electricity,10)+parseInt(player_information,10)+parseInt(player_water,10)+parseInt(player_metal,10)+parseInt(player_rare_metal,10)
+            player_workers_remaining = player_data[8]
+            player_total_workers = player_data[9]
+            player_username = player_data[10]
+            document.getElementById('opponent_labels').innerHTML=document.getElementById('opponent_labels').innerHTML+'Name:<br>VP:<br>Electricity:<br>Water:<br>Information:<br>Metal:<br>Rare Metal:<br>Total:<br>Workers:<br><br>'
+            document.getElementById('opponent_data').innerHTML=document.getElementById('opponent_data').innerHTML+player_username+'<br>'+player_vp+'<br><span style="color: #FFFF00;">'+player_electricity+'</span><br><span style="color: #00FFFF;">'+player_water+'</span><br><span style="color: #00E000;">'+player_information+'</span><br><span style="color: #808080;">'+player_metal+'</span><br><span style="color: #FF8000;">'+player_rare_metal+'</span><br>('+player_total+')<br>'+player_workers_remaining+'/'+player_total_workers+'<br><br>'
+    for i in [0..31]
+        if upgrades_available[i]==true
+            if i>=0 and i<=7
+                style='<span style="color: #00FFFF;" class="upgrade"'
+            else if i>=8 and i<=15
+                style='<span style="color: #FFFF00;" class="upgrade"'
+            else if i>=16 and i<=23
+                style='<span style="color: #00E000;" class="upgrade"'
+            else if i>=24 and i<=31
+                style='<span style="color: #808080;" class="upgrade"'
+            if upgrade_costs_met(players[playerNumber],i)==true
+                document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+style+' id="upgrade'+i+'">'+'<li>'+window.upgradeTypes[i].name+'</li>'+'</span>'
+            else
+                document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+style+window.upgradeTypes[i].name+'</span><br>'
+    document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+'</ul>'
+    $(".upgrade").mouseover ->
+        upgradeMouseOver(parseInt(this.id.split("e")[1],10))
+    $(".upgrade").mouseout ->
+        upgradeMouseOff()
     canvas.renderAll()
+
+upgrade_costs_met = (playerData,upgradeNumber) ->
+    # STUB
+    return true
 
 region_closed = (region) ->
     # STUB
