@@ -10,13 +10,57 @@ $(document).ready ->
     updater.start()
     window.tileTypes = initiateTileTypes()
     window.upgradeTypes = initiateUpgradeTypes()
-
+costsString = (id) ->
+    addCostIncreases(id)
+    text = ""
+    if window.upgradeTypes[id].electricity>0
+        text = text + "<span style='color: #"
+        if window.player_electricity<window.upgradeTypes[id].electricity
+            text=text+'FF0000'
+        else
+            text=text+'FFFF00'
+        text=text+";'>Electricity: "+window.upgradeTypes[id].electricity
+        text=text+'</span>   '
+    if window.upgradeTypes[id].water>0
+        text = text + "<span style='color: #"
+        if window.player_water<window.upgradeTypes[id].water
+            text=text+'FF0000'
+        else
+            text=text+'00FFFF'
+        text=text+";'>Water: "+window.upgradeTypes[id].water
+        text=text+'</span>   '
+    if window.upgradeTypes[id].information>0
+        text = text + "<span style='color: #"
+        if window.player_information<window.upgradeTypes[id].information
+            text=text+'FF0000'
+        else
+            text=text+'00E000'
+        text=text+";'>Information: "+window.upgradeTypes[id].information
+        text=text+'</span>   '
+    if window.upgradeTypes[id].metal>0
+        text = text + "<span style='color: #"
+        if window.player_metal<window.upgradeTypes[id].metal
+            text=text+'FF0000'
+        else
+            text=text+'808080'
+        text=text+";'>Metal: "+window.upgradeTypes[id].metal
+        text=text+'</span>   '
+    if window.upgradeTypes[id].rare_metal>0
+        text = text + "<span style='color: #"
+        if window.player_rare_metal<window.upgradeTypes[id].rare_metal
+            text=text+'FF0000'
+        else
+            text=text+'FF8000'
+        text=text+";'>Rare Metal: "+window.upgradeTypes[id].rare_metal
+        text=text+'</span>'
+    removeCostIncreases(id)
+    return text
 upgradeMouseOver = (upgrade_id) ->
-    document.getElementById('upgrade_float_text').innerHTML=window.upgradeTypes[upgrade_id].name
+    text = window.upgradeTypes[upgrade_id].name+'<br>'+costsString(upgrade_id)+'<br>'+window.upgradeTypes[upgrade_id].description+'<br>'+window.upgradeTypes[upgrade_id].description2+'<br>'+window.upgradeTypes[upgrade_id].description3
+    document.getElementById('upgrade_float_text').innerHTML=text
 upgradeMouseOff = () ->
     document.getElementById('upgrade_float_text').innerHTML=''
-
-renderTable = (upgrades_available,table_tiles,players,username) ->
+renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
     window.canvas.backgroundColor="black"
     for i in [0..29]
         for j in [0..29]
@@ -128,6 +172,13 @@ renderTable = (upgrades_available,table_tiles,players,username) ->
     player_water = player_data[5]
     player_workers_remaining = player_data[8]
     player_total_workers = player_data[9]
+    window.player_electricity = player_electricity
+    window.player_information = player_information
+    window.player_metal = player_metal
+    window.player_rare_metal = player_rare_metal
+    window.player_water = player_water
+    window.upgrades_available = upgrades_available
+    window.player_number = playerNumber
     document.getElementById('player_name').innerHTML=username
     document.getElementById('vp').innerHTML=player_vp
     document.getElementById('electricity').innerHTML=player_electricity
@@ -163,20 +214,73 @@ renderTable = (upgrades_available,table_tiles,players,username) ->
                 style='<span style="color: #00E000;" class="upgrade"'
             else if i>=24 and i<=31
                 style='<span style="color: #808080;" class="upgrade"'
-            if upgrade_costs_met(players[playerNumber],i)==true
+            if upgrade_costs_met(i)==true
                 document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+style+' id="upgrade'+i+'">'+'<li>'+window.upgradeTypes[i].name+'</li>'+'</span>'
             else
-                document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+style+window.upgradeTypes[i].name+'</span><br>'
+                document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+style+' id="upgrade'+i+'">'+window.upgradeTypes[i].name+'</span><br>'
     document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+'</ul>'
+    document.getElementById('upgrades').innerHTML=document.getElementById('upgrades').innerHTML+'<span style="color: #FFFFFF;"><br>Tiles Remaining: '+stack_tiles+'<br> Turn '+(18-(stack_tiles/4))+'/18</span>'
     $(".upgrade").mouseover ->
         upgradeMouseOver(parseInt(this.id.split("e")[1],10))
     $(".upgrade").mouseout ->
         upgradeMouseOff()
     canvas.renderAll()
 
-upgrade_costs_met = (playerData,upgradeNumber) ->
-    # STUB
+upgrade_costs_met = (id) ->
+    addCostIncreases(id)
+    if window.player_electricity<window.upgradeTypes[id].electricity
+        return false
+    if window.player_information<window.upgradeTypes[id].information
+        return false
+    if window.player_water<window.upgradeTypes[id].water
+        return false
+    if window.player_metal<window.upgradeTypes[id].metal
+        return false
+    if window.player_rare_metal<window.upgradeTypes[id].rare_metal
+        return false
+    removeCostIncreases(id)
     return true
+
+addCostIncreases = (id) ->
+    cost_increase = 0
+    if window.upgrades_available[25]==false
+        if upgrade_owner_number(25)!=window.player_number
+            if window.upgrades_available[16]==true or (window.upgrades_available[16]==false and upgrade_owner_number(16)!=window.player_identity)
+                cost_increase = get_highest_costed_resource(id)
+    if cost_increase==1
+        window.upgradeTypes[id].electricity=window.upgradeTypes[id].electricity+1
+    else if cost_increase==2
+        window.upgradeTypes[id].water=window.upgradeTypes[id].water+1
+    else if cost_increase==3
+        window.upgradeTypes[id].information=window.upgradeTypes[id].information+1
+    else if cost_increase==4
+        window.upgradeTypes[id].metal=window.upgradeTypes[id].metal+1
+    else if cost_increase==5
+        window.upgradeTypes[id].rare_metal=window.upgradeTypes[id].rare_metal+1
+removeCostIncreases = (id) ->
+    cost_increase = 0
+    if window.upgrades_available[25]==false
+        if upgrade_owner_number(25)!=window.player_number
+            if window.upgrades_available[16]==true or (window.upgrades_available[16]==false and upgrade_owner_number(16)!=window.player_identity)
+                cost_increase = get_highest_costed_resource(id)
+    if cost_increase==1
+        window.upgradeTypes[id].electricity=window.upgradeTypes[id].electricity-1
+    else if cost_increase==2
+        window.upgradeTypes[id].water=window.upgradeTypes[id].water-1
+    else if cost_increase==3
+        window.upgradeTypes[id].information=window.upgradeTypes[id].information-1
+    else if cost_increase==4
+        window.upgradeTypes[id].metal=window.upgradeTypes[id].metal-1
+    else if cost_increase==5
+        window.upgradeTypes[id].rare_metal=window.upgradeTypes[id].rare_metal-1
+
+upgrade_owner_number = (id) ->
+    #STUB
+    return 0
+
+get_highest_costed_resource = (id) ->
+    #STUB
+    return 1
 
 region_closed = (region) ->
     # STUB
@@ -226,7 +330,8 @@ updater =
         table_tiles = message.table_tiles
         players = message.players
         username = message.username
-        renderTable(upgrades_available,table_tiles,players,username)
+        stack_tiles = message.stack_tiles
+        renderTable(upgrades_available,table_tiles,players,username,stack_tiles)
 
 class TileType
     constructor: () ->

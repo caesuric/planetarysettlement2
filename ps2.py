@@ -281,7 +281,7 @@ class Game():
     def push_updates(self):
         for waiter in self.waiters:
 			waiter.write_message({"id": str(uuid.uuid4()), "message": "push_update", "upgrades_available": self.upgrades_available, "table_tiles": serialize_2d_list(self.table_tiles),
-								  "players": serialize_list(self.players),"username": waiter.username})
+								  "players": serialize_list(self.players),"username": waiter.username, "stack_tiles": len(self.stack_tiles)})
     #TODO: STUB
     def push_message(self,client,message):
         pass
