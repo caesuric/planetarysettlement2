@@ -275,24 +275,25 @@ class Game():
         for i in self.players:
             if i.is_first_player==True:
                 self.push_message(i,"Place the tile as desired.")
-                self.push_tile_lay(i,self.stack_tiles.remove)
-            else:
+                tile=self.stack_tiles.pop()
+                self.push_tile_lay(i,tile,True)
+        for i in self.players:
+            if i.is_first_player==False:
                 self.push_message(i,"Other player laying tiles.")
+                self.push_tile_lay(i,tile,False)
     def push_updates(self):
         for waiter in self.waiters:
 			waiter.write_message({"id": str(uuid.uuid4()), "message": "push_update", "upgrades_available": self.upgrades_available, "table_tiles": serialize_2d_list(self.table_tiles),
 								  "players": serialize_list(self.players),"username": waiter.username, "stack_tiles": len(self.stack_tiles)})
-    #TODO: STUB
     def push_message(self,client,message):
-        pass
-    #TODO: STUB
-    def push_tile_lay(self,client,tile):
-        pass
-    #TODO: STUB
+        client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_message", "text": message})
+    def push_tile_lay(self,client,tile,active):
+        client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_tile_lay", "tile": tile.to_JSON(), "active": active})
     def trigger_upgrade_on_turn_begins(self,number):
-        pass
     #TODO: STUB
+        pass
     def endgame(self):
+    #TODO: STUB
         pass
     def initiate_tile_types (self):
         types = []
