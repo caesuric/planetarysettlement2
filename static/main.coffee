@@ -4,7 +4,7 @@ $(document).ready ->
     if !window.console.log
         window.console.log = ->
 
-    window.canvas = new fabric.StaticCanvas('my_canvas')
+    window.canvas = new fabric.Canvas('my_canvas')
     window.canvas.backgroundColor="black"
     window.canvas.renderAll()
     updater.start()
@@ -67,87 +67,10 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
             if table_tiles[i][j]!=null
                 x_pos = i*45
                 y_pos = j*45
-                window.canvas.add new fabric.Rect(left: x_pos, top: y_pos, height: 45, width: 45, stroke: 'white', fill: 'transparent', strokeWidth: 2)
+                drawTableTile(x_pos,y_pos,table_tiles[i][j],true,i,j)
                 tile_data = table_tiles[i][j].split(",")
-                tile_type = parseInt(tile_data[0],10)
-                tile_orientation = parseInt(tile_data[1],10)
-                tile_upgrade_built = parseInt(tile_data[2],10)
-                tile_upgrade_owner = parseInt(tile_data[3],10)
-                tile_electricity = parseInt(tile_data[4],10)
-                tile_information = parseInt(tile_data[5],10)
-                tile_metal = parseInt(tile_data[6],10)
-                tile_rare_metal = parseInt(tile_data[7],10)
-                tile_water = parseInt(tile_data[8],10)
                 tile_worker_placed = parseInt(tile_data[9],10)
-                tile_city_online_status = parseInt(tile_data[10],10)
-                tile_counters = parseInt(tile_data[11],10)
-                rotated = getRotatedTileType(tile_type,tile_orientation)
-                if tile_city_online_status==0
-                    city_color = 'rgba(128,128,128,1)'
-                else if tile_city_online_status==1
-                    city_color = 'rgba(0,224,0,1)'
-                else if tile_city_online_status==2
-                    city_color = 'rgba(0,64,255,1)'
-                if rotated.facilityConnection[1]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
-                    if region_closed(get_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
-                if rotated.cityConnection[1]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
-                    if region_closed(get_city_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
-                if rotated.facilityConnection[2]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
-                    if region_closed(get_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
-                if rotated.cityConnection[2]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
-                    if region_closed(get_city_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
-                if rotated.facilityConnection[3]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                    if region_closed(get_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                if rotated.cityConnection[3]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                    if region_closed(get_city_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                if rotated.facilityConnection[0]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                    if region_closed(get_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                if rotated.cityConnection[0]==true
-                    window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                    if region_closed(get_city_region(i))==true
-                        window.canvas.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
-                if tile_electricity>0
-                    window.canvas.add new fabric.Text(tile_electricity.toString(), left: x_pos+2, top: y_pos+2, fill: 'rgba(255,255,0,1)', fontSize: 15)
-                if tile_water>0
-                    window.canvas.add new fabric.Text(tile_water.toString(), left: x_pos+18, top: y_pos+2, fill: 'rgba(0,255,255,1)', fontSize: 15)                
-                if tile_information>0
-                    window.canvas.add new fabric.Text(tile_information.toString(), left: x_pos+33, top: y_pos+2, fill: 'rgba(0,224,0,1)', fontSize: 15)
-                if tile_metal>0
-                    window.canvas.add new fabric.Text(tile_metal.toString(), left: x_pos+2, top: y_pos+18, fill: 'rgba(128,128,128,1)', fontSize: 15)
-                if tile_rare_metal>0
-                    window.canvas.add new fabric.Text(tile_rare_metal.toString(), left: x_pos+18, top: y_pos+18, fill: 'rgba(255,128,0,1)', fontSize: 15)
-                if tile_counters>0
-                    window.canvas.add new fabric.Text(tile_counters.toString(), left: x_pos+33, top: y_pos+33, fill: 'rgba(255,255,255,1)', fontSize: 15)
-                if tile_type==11 or tile_type==19
-                    window.canvas.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
-                if tile_type==12 or tile_type==20
-                    window.canvas.add new fabric.Text('D', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
-                if tile_type==13 or tile_type==21
-                    window.canvas.add new fabric.Text('U', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
-                if tile_type==14 or tile_type==22
-                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,255,0,1)', stroke: 'rgba(255,255,0,1)')
-                if tile_type==15 or tile_type==23
-                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(0,255,255,1)', stroke: 'rgba(0,255,255,1)')
-                if tile_type==16 or tile_type==24
-                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(0,224,0,1)', stroke: 'rgba(0,224,0,1)')
-                if tile_type==17 or tile_type==25
-                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(128,128,128,1)', stroke: 'rgba(128,128,128,1)')
-                if tile_type==18 or tile_type==26
-                    window.canvas.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,128,0,1)', stroke: 'rgba(255,128,0,1)')
+                tile_upgrade_built = parseInt(tile_data[2],10)
                 switch tile_worker_placed
                     when 0 then color='rgba(64,64,255,1)'
                     when 1 then color='rgba(255,64,64,1)'
@@ -225,7 +148,91 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
     $(".upgrade").mouseout ->
         upgradeMouseOff()
     canvas.renderAll()
-
+drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
+    group = new fabric.Group()
+    group.add new fabric.Rect(left: x_pos, top: y_pos, height: 45, width: 45, stroke: 'white', fill: 'transparent', strokeWidth: 2)
+    tile_data = tile.split(",")
+    tile_type = parseInt(tile_data[0],10)
+    tile_orientation = parseInt(tile_data[1],10)
+    tile_upgrade_built = parseInt(tile_data[2],10)
+    tile_upgrade_owner = parseInt(tile_data[3],10)
+    tile_electricity = parseInt(tile_data[4],10)
+    tile_information = parseInt(tile_data[5],10)
+    tile_metal = parseInt(tile_data[6],10)
+    tile_rare_metal = parseInt(tile_data[7],10)
+    tile_water = parseInt(tile_data[8],10)
+    tile_worker_placed = parseInt(tile_data[9],10)
+    tile_city_online_status = parseInt(tile_data[10],10)
+    tile_counters = parseInt(tile_data[11],10)
+    rotated = getRotatedTileType(tile_type,tile_orientation)
+    if tile_city_online_status==0
+        city_color = 'rgba(128,128,128,1)'
+    else if tile_city_online_status==1
+        city_color = 'rgba(0,224,0,1)'
+    else if tile_city_online_status==2
+        city_color = 'rgba(0,64,255,1)'
+    if rotated.facilityConnection[1]==true
+        group.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+        if region_closed(get_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+    if rotated.cityConnection[1]==true
+        group.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+        if region_closed(get_city_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos+45, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos+22, top: y_pos, opacity: 1.0)
+    if rotated.facilityConnection[2]==true
+        group.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+        if region_closed(get_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+    if rotated.cityConnection[2]==true
+        group.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+        if region_closed(get_city_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos+45, y: y_pos+45}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos+22, opacity: 1.0)
+    if rotated.facilityConnection[3]==true
+        group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+        if region_closed(get_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+    if rotated.cityConnection[3]==true
+        group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+        if region_closed(get_city_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos, y: y_pos+45}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+    if rotated.facilityConnection[0]==true
+        group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: 'rgba(255,0,0,1)', fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+        if region_closed(get_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,1)', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+    if rotated.cityConnection[0]==true
+        group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: city_color, fill: 'transparent', strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+        if region_closed(get_city_region(i))==true
+            group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
+    if tile_electricity>0
+        group.add new fabric.Text(tile_electricity.toString(), left: x_pos+2, top: y_pos+2, fill: 'rgba(255,255,0,1)', fontSize: 15)
+    if tile_water>0
+        group.add new fabric.Text(tile_water.toString(), left: x_pos+18, top: y_pos+2, fill: 'rgba(0,255,255,1)', fontSize: 15)                
+    if tile_information>0
+        group.add new fabric.Text(tile_information.toString(), left: x_pos+33, top: y_pos+2, fill: 'rgba(0,224,0,1)', fontSize: 15)
+    if tile_metal>0
+        group.add new fabric.Text(tile_metal.toString(), left: x_pos+2, top: y_pos+18, fill: 'rgba(128,128,128,1)', fontSize: 15)
+    if tile_rare_metal>0
+        group.add new fabric.Text(tile_rare_metal.toString(), left: x_pos+18, top: y_pos+18, fill: 'rgba(255,128,0,1)', fontSize: 15)
+    if tile_counters>0
+        group.add new fabric.Text(tile_counters.toString(), left: x_pos+33, top: y_pos+33, fill: 'rgba(255,255,255,1)', fontSize: 15)
+    if tile_type==11 or tile_type==19
+        group.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
+    if tile_type==12 or tile_type==20
+        group.add new fabric.Text('D', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
+    if tile_type==13 or tile_type==21
+        group.add new fabric.Text('U', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
+    if tile_type==14 or tile_type==22
+        group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,255,0,1)', stroke: 'rgba(255,255,0,1)')
+    if tile_type==15 or tile_type==23
+        group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(0,255,255,1)', stroke: 'rgba(0,255,255,1)')
+    if tile_type==16 or tile_type==24
+        group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(0,224,0,1)', stroke: 'rgba(0,224,0,1)')
+    if tile_type==17 or tile_type==25
+        group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(128,128,128,1)', stroke: 'rgba(128,128,128,1)')
+    if tile_type==18 or tile_type==26
+        group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,128,0,1)', stroke: 'rgba(255,128,0,1)')
+    window.canvas.add(group)
+    return group
 upgrade_costs_met = (id) ->
     addCostIncreases(id)
     if window.player_electricity<window.upgradeTypes[id].electricity
@@ -325,6 +332,10 @@ updater =
     processMessage: (message) ->
         if message.message=='push_update'
             updater.processPushUpdate(message)
+        else if message.message=='push_message'
+            updater.processPushMessage(message)
+        else if message.message=='push_tile_lay'
+            updater.processTileLay(message)
     processPushUpdate: (message) ->
         upgrades_available = message.upgrades_available
         table_tiles = message.table_tiles
@@ -332,7 +343,33 @@ updater =
         username = message.username
         stack_tiles = message.stack_tiles
         renderTable(upgrades_available,table_tiles,players,username,stack_tiles)
-
+    processPushMessage: (message) ->
+        document.getElementById('message').innerHTML=message.text
+    processTileLay: (message) ->
+        group = drawTableTile(0,0,message.tile,false,0,0)
+        if message.active==true
+            window.canvas.on 'mouse:move', (options) ->
+                leftmost = 10000
+                topmost = 10000
+                x = Math.floor(options.e.clientX / 45) * 45
+                y = Math.floor(options.e.clientY / 45) * 45
+                group.forEachObject((o) ->
+                    if o.get('left')<leftmost
+                        leftmost = o.get('left'))
+                group.forEachObject((o) ->
+                    if o.get('top')<topmost
+                        topmost = o.get('top'))
+                group.forEachObject((o) ->
+                    offset = o.get('left')-leftmost
+                    o.set('left',x+offset))
+                group.forEachObject((o) ->
+                    offset = o.get('top')-topmost
+                    o.set('top',y+offset))
+                window.canvas.renderAll()
+            window.canvas.on 'mouse:up', (options) ->
+                x = Math.floor(options.e.clientX / 45)
+                y = Math.floor(options.e.clientY / 45)
+                # INCOMPLETE - IN PROGRESS
 class TileType
     constructor: () ->
         @facilityConnection = [false,false,false,false]
@@ -378,9 +415,9 @@ class UpgradeType
     cost: (self,upgrade_number) ->
         cost_increase = 0
         player = game_state.players[player_identity]
-        if game_state.upgrades_available[25]==False
+        if game_state.upgrades_available[25]==false
             if upgrade_owner_number(25)!=player_identity
-                if game_state.upgrades_available[16]==True or (game_state.upgrades_available[16]==False and upgrade_owner_number(16)!=player_identity)
+                if game_state.upgrades_available[16]==true or (game_state.upgrades_available[16]==false and upgrade_owner_number(16)!=player_identity)
                     cost_increase = get_highest_costed_resource(upgrade_number)
         if cost_increase==1
             this.electricity+=1
