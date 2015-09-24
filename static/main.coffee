@@ -336,6 +336,8 @@ updater =
             updater.processPushMessage(message)
         else if message.message=='push_tile_lay'
             updater.processTileLay(message)
+        else if message.message=='push_tile_rotate'
+            updater.processTileRotate(message)
     processPushUpdate: (message) ->
         upgrades_available = message.upgrades_available
         table_tiles = message.table_tiles
@@ -347,6 +349,8 @@ updater =
         document.getElementById('message').innerHTML=message.text
     processTileLay: (message) ->
         group = drawTableTile(0,0,message.tile,false,0,0)
+        updater.tile = message.tile
+        updater.group = group
         if message.active==true
             window.canvas.on 'mouse:move', (options) ->
                 leftmost = 10000
@@ -367,9 +371,42 @@ updater =
                     o.set('top',y+offset))
                 window.canvas.renderAll()
             window.canvas.on 'mouse:up', (options) ->
+                message = {}
                 x = Math.floor(options.e.clientX / 45)
                 y = Math.floor(options.e.clientY / 45)
-                # INCOMPLETE - IN PROGRESS
+                message.message = 'tile_position_selected'
+                message.tile = updater.tile
+                message.x = x
+                message.y = y
+                window.canvas.off 'mouse:move'
+                window.canvas.off 'mouse:up'
+                updater.socket.send(JSON.stringify(message))
+    processTileRotate: (message) ->
+        window.canvas.on 'mouse:move', (options) ->
+            x = options.e.clientX
+            y = options.e.clientY
+            tileX = message.x*45
+            tileY = message.y*45
+            if Math.abs(x-tileX)>Math.abs(y-tileY)
+                if x>tileX
+                    updater.orientation = 1
+                else
+                    updater.orientation = 3
+            else
+                if y>tileY
+                    updater.orientation = 2
+                else
+                    updater.orientation = 0
+            split_tile = message.tile.split(',')
+            split_tile[1]=updater.orientation
+            updater.tile = split_tile.join(',')
+            message.tile = updater.tile
+            window.canvas.remove(updater.group)
+            console.log("REACHED")
+            updater.group = drawTableTile(tileX,tileY,message.tile,false,message.x,message.y)
+            window.canvas.renderAll()
+        window.canvas.on 'mouse:up', (options) ->
+            x = options.
 class TileType
     constructor: () ->
         @facilityConnection = [false,false,false,false]

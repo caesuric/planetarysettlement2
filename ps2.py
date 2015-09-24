@@ -135,6 +135,8 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
         MainSocketHandler.waiters.remove(self)
     def on_message(self,message):
         parsed = tornado.escape.json_decode(message)
+        if parsed['message']=='tile_position_selected':
+            self.game.tile_position_selected(parsed)
     def start_game(self):
         self.game.start()
 class Game():
@@ -289,6 +291,11 @@ class Game():
         client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_message", "text": message})
     def push_tile_lay(self,client,tile,active):
         client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_tile_lay", "tile": tile.to_JSON(), "active": active})
+    def tile_position_selected(self,message):
+        message['message'] = 'push_tile_rotate'
+        for i in self.players:
+            if i.is_first_player==True:
+                i.handler.write_message(message)
     def trigger_upgrade_on_turn_begins(self,number):
     #TODO: STUB
         pass
