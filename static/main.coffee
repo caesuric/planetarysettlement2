@@ -69,6 +69,7 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
                 x_pos = i*45
                 y_pos = j*45
                 drawTableTile(x_pos,y_pos,table_tiles[i][j],true,i,j)
+                window.canvas.renderAll()
                 tile_data = table_tiles[i][j].split(",")
                 tile_worker_placed = parseInt(tile_data[9],10)
                 tile_upgrade_built = parseInt(tile_data[2],10)
@@ -152,7 +153,7 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
         upgradeMouseOver(parseInt(this.id.split("e")[1],10))
     $(".upgrade").mouseout ->
         upgradeMouseOff()
-    canvas.renderAll()
+    window.canvas.renderAll()
 drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
     group = new fabric.Group()
     group.add new fabric.Rect(left: x_pos, top: y_pos, height: 45, width: 45, stroke: 'white', fill: 'transparent', strokeWidth: 2)
@@ -414,6 +415,10 @@ updater =
         updater.socket.onmessage = (event) ->
             updater.processMessage JSON.parse(event.data)
         updater.socket.onopen = updater.initialize
+    initialize: () ->
+        message = {}
+        message.message = 'request_update'
+        updater.socket.send(JSON.stringify(message))
     processMessage: (message) ->
         if message.message=='push_update'
             updater.processPushUpdate(message)
@@ -438,6 +443,8 @@ updater =
         username = message.username
         stack_tiles = message.stack_tiles
         renderTable(upgrades_available,table_tiles,players,username,stack_tiles)
+        message.message = 'update_finished'
+        updater.socket.send(JSON.stringify(message))
     processPushMessage: (message) ->
         document.getElementById('message').innerHTML=message.text
     processTileLay: (message) ->
@@ -505,7 +512,7 @@ updater =
             window.canvas.off 'mouse:up'
             updater.socket.send(JSON.stringify(message))
     processWorkerLay: (message) ->
-        switch window.player_identity
+        switch parseInt(message.worker_turn)
                     when 0 then color='rgba(64,64,255,1)'
                     when 1 then color='rgba(255,64,64,1)'
                     when 2 then color='rgba(64,255,64,1)'

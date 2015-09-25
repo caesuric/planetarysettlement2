@@ -10,6 +10,7 @@ import datetime
 import json
 from tornado.options import define, options
 import random
+import time
 
 define("port", default=8888, help="run on the given port", type=int)
 
@@ -143,12 +144,17 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
             self.game.beginning_of_turn()
         elif parsed['message']=='worker_placed':
             self.game.worker_placed(parsed)
+        elif parsed['message']=='update_finished':
+            self.ready=True
+        elif parsed['message']=='request_update':
+            self.game.push_update(self)
     def start_game(self):
         self.game.start()
 class Game():
     waiters = []
     def __init__(self,game_id):
         self.game_id = game_id
+        self.ready = False
     def start(self):
         for i in MainSocketHandler.waiters:
             if i.game_id==self.game_id:
@@ -271,6 +277,7 @@ class Game():
                 a.is_turn_to_place=True
             a.handler = self.waiters[i]
             self.players.append(a)
+        self.ready=True
         self.beginning_of_turn()
     def beginning_of_turn(self):
         self.switch_start_player()
@@ -286,6 +293,7 @@ class Game():
             if self.upgrades_available[i]==False:
                 trigger_upgrade_on_turn_begins(i)
     def switch_start_player(self):
+        first_player=0
         for i in range(len(self.players)):
             if self.players[i].is_first_player==True:
                 first_player=i
@@ -297,6 +305,11 @@ class Game():
                 self.players[i].is_first_player=True
             else:
                 self.players[i].is_first_player=False
+    def not_ready(self):
+        for waiter in self.waiters:
+            if waiter.ready==False:
+                return True
+        return False
     def lay_tiles(self):
         self.push_updates()
         for i in self.players:
@@ -309,9 +322,16 @@ class Game():
                 self.push_message(i,"Other player laying tiles.")
                 self.push_tile_lay(i,tile,False)
     def push_updates(self):
-        for waiter in self.waiters:
-			waiter.write_message({"id": str(uuid.uuid4()), "message": "push_update", "upgrades_available": self.upgrades_available, "table_tiles": serialize_2d_list(self.table_tiles),
-								  "players": serialize_list(self.players),"username": waiter.username, "stack_tiles": len(self.stack_tiles)})
+        if self.ready==True:
+            for waiter in self.waiters:
+                waiter.ready = False
+            for waiter in self.waiters:
+                waiter.write_message({"id": str(uuid.uuid4()), "message": "push_update", "upgrades_available": self.upgrades_available, "table_tiles": serialize_2d_list(self.table_tiles),
+                                      "players": serialize_list(self.players),"username": waiter.username, "stack_tiles": len(self.stack_tiles)})
+    def push_update(self,client):
+        if self.ready==True:
+            client.write_message({"id": str(uuid.uuid4()), "message": "push_update", "upgrades_available": self.upgrades_available, "table_tiles": serialize_2d_list(self.table_tiles),
+                                  "players": serialize_list(self.players),"username": client.username, "stack_tiles": len(self.stack_tiles)})
     def push_message(self,client,message):
         client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_message", "text": message})
     def push_tile_lay(self,client,tile,active):
@@ -377,13 +397,16 @@ class Game():
                     tile.worker_placed = self.worker_turn
                     self.rotate_worker_turn()
                     if self.worker_turn!=-1:
+                        self.push_updates()
                         for i in range(len(self.players)):
                             if i==self.worker_turn:
+                                self.push_message(self.players[i],"Place your worker.")
+                                self.players[i].workers_remaining-=1
                                 self.push_worker_lay(self.players[i],True)
-                                return
                             else:
+                                self.push_message(self.players[i],"Other player placing worker.")
                                 self.push_worker_lay(self.players[i],False)
-                                return
+                        return
                     else:
                         self.push_turn_end(first_player)
                         return
@@ -393,15 +416,16 @@ class Game():
         self.push_worker_lay(first_player,True)
     def rotate_worker_turn(self):
         initial_worker_turn=self.worker_turn
+        self.worker_turn+=1
+        if self.worker_turn>=len(self.players):
+            self.worker_turn=0
         while self.players[self.worker_turn].workers_remaining<1:
             self.worker_turn+=1
             if self.worker_turn>=len(self.players):
                 self.worker_turn=0
             if self.worker_turn==initial_worker_turn:
                 self.worker_turn=-1
-                print("worker placement over")
                 break
-        print ("worker placement: {0}".format(self.worker_turn))
     def lay_workers(self):
         for i in self.players:
             i.workers_remaining = i.total_workers
@@ -418,7 +442,7 @@ class Game():
                 self.push_message(i,"Other player placing worker.")
                 self.push_worker_lay(i,False)
     def push_worker_lay(self,client,active):
-        client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_worker_lay", "active": active})
+        client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_worker_lay", "active": active, "worker_turn": self.worker_turn})
     def stock_resources(self):
         cornerstones = self.get_cornerstones()
         regions = []
