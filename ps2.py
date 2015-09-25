@@ -137,6 +137,12 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
         parsed = tornado.escape.json_decode(message)
         if parsed['message']=='tile_position_selected':
             self.game.tile_position_selected(parsed)
+        elif parsed['message']=='tile_rotation_selected':
+            self.game.tile_rotation_selected(parsed)
+        elif parsed['message']=='return_turn_end':
+            self.game.beginning_of_turn()
+        elif parsed['message']=='worker_placed':
+            self.game.worker_placed(parsed)
     def start_game(self):
         self.game.start()
 class Game():
@@ -250,6 +256,11 @@ class Game():
         a.tile_type = 1
         a.tile_orientation = 0
         temp_tiles[11][11]=a
+        for i in range(30):
+            for j in range(30):
+                if temp_tiles[i][j]!=None:
+                    temp_tiles[i][j].x=i
+                    temp_tiles[i][j].y=j
         self.table_tiles = temp_tiles
         
         self.players = []
@@ -262,8 +273,10 @@ class Game():
             self.players.append(a)
         self.beginning_of_turn()
     def beginning_of_turn(self):
+        self.switch_start_player()
         self.check_for_endgame()
         self.beginning_of_turn_phase()
+        self.tile_number=1
         self.lay_tiles()
     def check_for_endgame(self):
         if len(self.stack_tiles)==0:
@@ -272,6 +285,18 @@ class Game():
         for i in range(0,32):
             if self.upgrades_available[i]==False:
                 trigger_upgrade_on_turn_begins(i)
+    def switch_start_player(self):
+        for i in range(len(self.players)):
+            if self.players[i].is_first_player==True:
+                first_player=i
+        first_player+=1
+        if first_player>=len(self.players):
+            first_player=0
+        for i in range(len(self.players)):
+            if first_player==i:
+                self.players[i].is_first_player=True
+            else:
+                self.players[i].is_first_player=False
     def lay_tiles(self):
         self.push_updates()
         for i in self.players:
@@ -295,7 +320,324 @@ class Game():
         message['message'] = 'push_tile_rotate'
         for i in self.players:
             if i.is_first_player==True:
+                self.push_message(i,"Rotate the tile as desired.")
                 i.handler.write_message(message)
+    def tile_rotation_selected(self,message):
+        x = message['x']
+        y = message['y']
+        tile = Tile()
+        tile.from_JSON(message['tile'])
+        for i in self.players:
+            if i.is_first_player==True:
+                first_player = i
+        if self.table_tiles[x][y]!=None:
+            self.push_relay_tiles(first_player,tile)
+            return
+        if self.check_for_adjacent_tiles(tile,x,y)==False:
+            self.push_relay_tiles(first_player,tile)
+            return
+        if self.check_connections(tile,x,y)==False:
+            self.push_relay_tiles(first_player,tile)
+            return
+        if x>29 or y>29:
+            self.push_relay_tiles(first_player,tile)
+            return
+        tile.x=x
+        tile.y=y
+        self.table_tiles[x][y]=tile
+        region = self.get_region(x,y)
+        if self.region_closed(region)==True:
+            if self.has_cornerstone(region)==False:
+                type = tile.tile_type
+                if type==0 or type==2 or type==4 or type==5 or type==6 or type==7 or type==9 or type>=11:
+                    self.table_tiles[x][y]=None
+                    self.push_relay_tiles(first_player,tile)
+                    return
+        self.tile_number+=1
+        if self.tile_number<=4:
+            self.lay_tiles()
+        else:
+            # self.push_turn_end(first_player)
+            self.stock_resources()
+            self.lay_workers()
+    def worker_placed(self,message):
+        x = int(message['x'])
+        y = int(message['y'])
+        tile = self.table_tiles[x][y]
+        for i in self.players:
+            if i.is_first_player==True:
+                first_player = i
+        if tile==None:
+            self.push_relay_worker(first_player)
+            return
+        type = tile.tile_type
+        if type==0 or type==2 or type==3 or type==4 or type==5 or type==6 or type==7 or type==9 or type>=11:
+            if self.region_closed(self.get_region(x,y))==True:
+                if tile.worker_placed==-1:
+                    tile.worker_placed = self.worker_turn
+                    self.rotate_worker_turn()
+                    if self.worker_turn!=-1:
+                        for i in range(len(self.players)):
+                            if i==self.worker_turn:
+                                self.push_worker_lay(self.players[i],True)
+                                return
+                            else:
+                                self.push_worker_lay(self.players[i],False)
+                                return
+                    else:
+                        self.push_turn_end(first_player)
+                        return
+        self.push_relay_worker(first_player)
+    def push_relay_worker(self,first_player):
+        self.push_message(first_player,"Place your worker.")
+        self.push_worker_lay(first_player,True)
+    def rotate_worker_turn(self):
+        initial_worker_turn=self.worker_turn
+        while self.players[self.worker_turn].workers_remaining<1:
+            self.worker_turn+=1
+            if self.worker_turn>=len(self.players):
+                self.worker_turn=0
+            if self.worker_turn==initial_worker_turn:
+                self.worker_turn=-1
+                print("worker placement over")
+                break
+        print ("worker placement: {0}".format(self.worker_turn))
+    def lay_workers(self):
+        for i in self.players:
+            i.workers_remaining = i.total_workers
+        self.push_updates()
+        for i in range(len(self.players)):
+            if self.players[i].is_first_player==True:
+                self.worker_turn=i
+        for i in self.players:
+            if i.is_first_player==True:
+                self.push_message(i,"Place your worker.")
+                i.workers_remaining-=1
+                self.push_worker_lay(i,True)
+            else:
+                self.push_message(i,"Other player placing worker.")
+                self.push_worker_lay(i,False)
+    def push_worker_lay(self,client,active):
+        client.handler.write_message({"id": str(uuid.uuid4()), "message": "push_worker_lay", "active": active})
+    def stock_resources(self):
+        cornerstones = self.get_cornerstones()
+        regions = []
+        if len(cornerstones)>0:
+            for i in cornerstones:
+                regions.append(self.get_region(i.x,i.y))
+            for i in regions:
+                self.fill_region(i)
+    def get_cornerstones(self):
+        cornerstones = []
+        for i in self.table_tiles:
+            for j in i:
+                if j!=None and j.tile_type>10:
+                    cornerstones.append(j)
+        return cornerstones
+    def fill_region(self,region):
+        if self.region_closed(region):
+            for i in region:
+                if region[0].tile_type==14:
+                    if i.electricity==None:
+                        i.electricity=1
+                    else:
+                        i.electricity+=1
+                elif region[0].tile_type==15:
+                    if i.water==None:
+                        i.water=1
+                    else:
+                        i.water+=1
+                elif region[0].tile_type==16:
+                    if i.information==None:
+                        i.information=1
+                    else:
+                        i.information+=1
+                elif region[0].tile_type==17:
+                    if i.metal==None:
+                        i.metal=1
+                    else:
+                        i.metal+=1
+                elif region[0].tile_type==18:
+                    if i.rare_metal==None:
+                        i.rare_metal=1
+                    else:
+                        i.rare_metal+=1
+                elif region[0].tile_type==22:
+                    if i.electricity==None:
+                        i.electricity=2
+                    else:
+                        i.electricity+=2
+                elif region[0].tile_type==23:
+                    if i.water==None:
+                        i.water=2
+                    else:
+                        i.water+=2
+                elif region[0].tile_type==24:
+                    if i.information==None:
+                        i.information=2
+                    else:
+                        i.information+=2
+                elif region[0].tile_type==25:
+                    if i.metal==None:
+                        i.metal=2
+                    else:
+                        i.metal+=2
+                elif region[0].tile_type==26:
+                    if i.rare_metal==None:
+                        i.rare_metal=2
+                    else:
+                        i.rare_metal+=2
+    def push_turn_end(self,first_player):
+        first_player.handler.write_message({"id": str(uuid.uuid4()), "message": "push_turn_end"})
+    def push_relay_tiles(self,first_player,tile):
+        self.push_message(first_player,"Place the tile as desired.")
+        self.push_tile_lay(first_player,tile,True)
+    def check_for_adjacent_tiles(self,tile,x,y):
+        if self.table_tiles[x-1][y]!=None or self.table_tiles[x+1][y]!=None or self.table_tiles[x][y-1]!=None or self.table_tiles[x][y+1]!=None:
+            return True
+        else:
+            return False
+    def check_connections(self,tile,x,y):
+        rotated = self.get_rotated_tile_type(tile)
+        if rotated.facility_connection[0]==True:
+            if self.check_facility_connection(x,y-1,2)==False:
+                return False
+        if rotated.facility_connection[1]==True:
+            if self.check_facility_connection(x+1,y,3)==False:
+                return False
+        if rotated.facility_connection[2]==True:
+            if self.check_facility_connection(x,y+1,0)==False:
+                return False
+        if rotated.facility_connection[3]==True:
+            if self.check_facility_connection(x-1,y,1)==False:
+                return False
+        if rotated.city_connection[0]==True:
+            if self.check_city_connection(x,y-1,2)==False:
+                return False
+        if rotated.city_connection[1]==True:
+            if self.check_city_connection(x+1,y,3)==False:
+                return False
+        if rotated.city_connection[2]==True:
+            if self.check_city_connection(x,y+1,0)==False:
+                return False
+        if rotated.city_connection[3]==True:
+            if self.check_city_connection(x-1,y,1)==False:
+                return False
+        if rotated.facility_connection[0]==False:
+            if self.check_facility_connection(x,y-1,2)==True:
+                if self.table_tiles[x][y-1]!=None:
+                    return False
+        if rotated.facility_connection[1]==False:
+            if self.check_facility_connection(x+1,y,3)==True:
+                if self.table_tiles[x+1][y]!=None:
+                    return False
+        if rotated.facility_connection[2]==False:
+            if self.check_facility_connection(x,y+1,0)==True:
+                if self.table_tiles[x][y+1]!=None:
+                    return False
+        if rotated.facility_connection[3]==False:
+            if self.check_facility_connection(x-1,y,1)==True:
+                if self.table_tiles[x-1][y]!=None:
+                    return False
+        if rotated.city_connection[0]==False:
+            if self.check_city_connection(x,y-1,2)==True:
+                if self.table_tiles[x][y-1]!=None:
+                    return False
+        if rotated.city_connection[1]==False:
+            if self.check_city_connection(x+1,y,3)==True:
+                if self.table_tiles[x+1][y]!=None:
+                    return False
+        if rotated.city_connection[2]==False:
+            if self.check_city_connection(x,y+1,0)==True:
+                if self.table_tiles[x][y+1]!=None:
+                    return False
+        if rotated.city_connection[3]==False:
+            if self.check_city_connection(x-1,y,1)==True:
+                if self.table_tiles[x-1][y]!=None:
+                    return False
+        return True
+    def get_rotated_tile_type(self,tile):
+        tile_type = TileType()
+        base_tile_type = self.tile_types[tile.tile_type]
+        for i in range(4):
+            tile_type.facility_connection[i]=base_tile_type.facility_connection[self.get_rotation(i-tile.tile_orientation)]
+            tile_type.city_connection[i]=base_tile_type.city_connection[self.get_rotation(i-tile.tile_orientation)]
+        return tile_type
+    def get_rotation(self,rotation):
+        if rotation>=0 and rotation<=3:
+            return rotation
+        elif rotation>3:
+            while rotation>3:
+                rotation-=4
+            return rotation
+        elif rotation<0:
+            while rotation<0:
+                rotation+=4
+            return rotation
+    def check_facility_connection(self,x,y,side):
+        tile = self.table_tiles[x][y]
+        if tile==None:
+            return True
+        rotated = self.get_rotated_tile_type(tile)
+        if rotated.facility_connection[side]==False:
+            return False
+        elif rotated.facility_connection[side]==True:
+            return True
+    def check_city_connection(self,x,y,side):
+        tile = self.table_tiles[x][y]
+        if tile==None:
+            return True
+        rotated = self.get_rotated_tile_type(tile)
+        if rotated.city_connection[side]==False:
+            return False
+        elif rotated.city_connection[side]==True:
+            return True
+    def region_closed(self,region):
+        if self.x_in_y(None,region)==True:
+            return False
+        else:
+            return True
+    def has_cornerstone(self,region):
+        for i in region:
+            if self.is_cornerstone(i)==True:
+                return True
+        return False
+    def x_in_y(self,x,y):
+        value = False
+        for i in y:
+            if i==x:
+                value = True
+        return value
+    def is_cornerstone(self,tile):
+        if tile.tile_type>=11:
+            return True
+        else:
+            return False
+    def get_region(self,x,y):
+        region = self.get_connected([self.table_tiles[x][y]])
+        return region
+    def get_connected(self,connected):
+        if connected!=None:
+            for i in connected:
+                if i!=None:
+                    for j in self.get_immediately_connected(i):
+                        if self.x_in_y (j,connected)==False:
+                            connected.append(j)
+        return connected
+    def get_immediately_connected(self,tile):
+        connected = []
+        x=tile.x
+        y=tile.y
+        theoretical_tile = self.get_rotated_tile_type(tile)
+        if theoretical_tile.facility_connection[0]==True:
+            connected.append(self.table_tiles[x][y-1])
+        if theoretical_tile.facility_connection[1]==True:
+            connected.append(self.table_tiles[x+1][y])
+        if theoretical_tile.facility_connection[2]==True:
+            connected.append(self.table_tiles[x][y+1])
+        if theoretical_tile.facility_connection[3]==True:
+            connected.append(self.table_tiles[x-1][y])
+        return connected
     def trigger_upgrade_on_turn_begins(self,number):
     #TODO: STUB
         pass
@@ -391,8 +733,26 @@ class Tile():
         self.worker_placed = -1
         self.city_online_status = 0 #0 = not online, 1 = tile brought online, 2 = entire city online
         self.counters = 0
+        self.x = 0
+        self.y = 0
     def to_JSON(self):
-        return "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}".format(self.tile_type,self.tile_orientation,self.upgrade_built,self.upgrade_owner,self.electricity,self.information,self.metal,self.rare_metal,self.water,self.worker_placed,self.city_online_status,self.counters)
+        return "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13}".format(self.tile_type,self.tile_orientation,self.upgrade_built,self.upgrade_owner,self.electricity,self.information,self.metal,self.rare_metal,self.water,self.worker_placed,self.city_online_status,self.counters,self.x,self.y)
+    def from_JSON(self,input):
+        split = input.split(',')
+        self.tile_type=int(split[0])
+        self.tile_orientation=int(split[1])
+        self.upgrade_built=int(split[2])
+        self.upgrade_owner=int(split[3])
+        self.electricity=int(split[4])
+        self.information=int(split[5])
+        self.metal=int(split[6])
+        self.rare_metal=int(split[7])
+        self.water=int(split[8])
+        self.worker_placed=int(split[9])
+        self.city_online_status=int(split[10])
+        self.counters=int(split[11])
+        self.x=int(split[12])
+        self.y=int(split[13])
 class Player():
     def __init__(self):
         self.vp=0
