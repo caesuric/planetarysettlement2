@@ -69,7 +69,6 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
                 x_pos = i*45
                 y_pos = j*45
                 drawTableTile(x_pos,y_pos,table_tiles[i][j],true,i,j)
-                window.canvas.renderAll()
                 tile_data = table_tiles[i][j].split(",")
                 tile_worker_placed = parseInt(tile_data[9],10)
                 tile_upgrade_built = parseInt(tile_data[2],10)
@@ -153,8 +152,20 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
         upgradeMouseOver(parseInt(this.id.split("e")[1],10))
     $(".upgrade").mouseout ->
         upgradeMouseOff()
-    window.canvas.renderAll()
 drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
+    # if i==9 and j==9
+        # return
+    # if i==9 and j==10
+        # return
+    # if i==10 and j==9
+        # return
+    # if i==10 and j==10
+        # return
+    # if i==11 and j==9
+        # return
+    message = {}
+    message.message = 'Drawing table tile '+i+'/'+j
+    updater.socket.send(JSON.stringify(message))
     group = new fabric.Group()
     group.add new fabric.Rect(left: x_pos, top: y_pos, height: 45, width: 45, stroke: 'white', fill: 'transparent', strokeWidth: 2)
     tile_data = tile.split(",")
@@ -246,6 +257,9 @@ drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
     if tile_type==18 or tile_type==26
         group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,128,0,1)', stroke: 'rgba(255,128,0,1)')
     window.canvas.add(group)
+    message = {}
+    message.message = 'Finishing table tile '+i+'/'+j
+    updater.socket.send(JSON.stringify(message))
     return group
 upgrade_costs_met = (id) ->
     addCostIncreases(id)
@@ -432,6 +446,8 @@ updater =
             updater.processTurnEnd(message)
         else if message.message=='push_worker_lay'
             updater.processWorkerLay(message)
+        message.message = 'update_finished'
+        updater.socket.send(JSON.stringify(message))
     processTurnEnd: (message) ->
         message.message = 'return_turn_end'
         updater.socket.send(JSON.stringify(message))
@@ -443,8 +459,7 @@ updater =
         username = message.username
         stack_tiles = message.stack_tiles
         renderTable(upgrades_available,table_tiles,players,username,stack_tiles)
-        message.message = 'update_finished'
-        updater.socket.send(JSON.stringify(message))
+        window.canvas.renderAll()
     processPushMessage: (message) ->
         document.getElementById('message').innerHTML=message.text
     processTileLay: (message) ->
