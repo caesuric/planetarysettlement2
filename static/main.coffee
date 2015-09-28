@@ -229,17 +229,17 @@ drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
             if region_closed(get_city_region(window.table_tiles[i][j]))==true
                 group.add new fabric.Polygon([{x: x_pos, y: y_pos}, {x: x_pos+22, y: y_pos+22}, {x: x_pos+45, y: y_pos}], stroke: city_color, fill: city_color, strokeWidth: 4, left: x_pos, top: y_pos, opacity: 1.0)
     if tile_electricity>0
-        group.add new fabric.Text(tile_electricity.toString(), left: x_pos+2, top: y_pos+2, fill: 'rgba(255,255,0,1)', fontSize: 15)
+        group.add new fabric.Text(tile_electricity.toString(), left: x_pos+2, top: y_pos+2, fill: 'rgb(255,255,0)', fontSize: 15)
     if tile_water>0
-        group.add new fabric.Text(tile_water.toString(), left: x_pos+18, top: y_pos+2, fill: 'rgba(0,255,255,1)', fontSize: 15)                
+        group.add new fabric.Text(tile_water.toString(), left: x_pos+18, top: y_pos+2, fill: 'rgb(0,255,255)', fontSize: 15)
     if tile_information>0
-        group.add new fabric.Text(tile_information.toString(), left: x_pos+33, top: y_pos+2, fill: 'rgba(0,224,0,1)', fontSize: 15)
+        group.add new fabric.Text(tile_information.toString(), left: x_pos+33, top: y_pos+2, fill: 'rgb(0,224,0)', fontSize: 15)
     if tile_metal>0
-        group.add new fabric.Text(tile_metal.toString(), left: x_pos+2, top: y_pos+18, fill: 'rgba(128,128,128,1)', fontSize: 15)
+        group.add new fabric.Text(tile_metal.toString(), left: x_pos+2, top: y_pos+18, fill: 'rgb(128,128,128)', fontSize: 15)
     if tile_rare_metal>0
-        group.add new fabric.Text(tile_rare_metal.toString(), left: x_pos+18, top: y_pos+18, fill: 'rgba(255,128,0,1)', fontSize: 15)
+        group.add new fabric.Text(tile_rare_metal.toString(), left: x_pos+18, top: y_pos+18, fill: 'rgb(255,128,0)', fontSize: 15)
     if tile_counters>0
-        group.add new fabric.Text(tile_counters.toString(), left: x_pos+33, top: y_pos+33, fill: 'rgba(255,255,255,1)', fontSize: 15)
+        group.add new fabric.Text(tile_counters.toString(), left: x_pos+33, top: y_pos+33, fill: 'rgb(255,255,255)', fontSize: 15)
     if tile_type==11 or tile_type==19
         group.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
     if tile_type==12 or tile_type==20
