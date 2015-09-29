@@ -126,11 +126,7 @@ renderTable = function(upgrades_available, table_tiles, players, username, stack
             left: x_pos + 18,
             top: y_pos + 26,
             fill: 'rgba(255,255,255,1)',
-<<<<<<< HEAD
             fontSize: 15
-=======
-            fontSize: 22
->>>>>>> origin/master
           }));
         }
       }
@@ -659,11 +655,7 @@ drawTableTile = function(x_pos, y_pos, tile, is_real_tile, i, j) {
       left: x_pos + 18,
       top: y_pos + 18,
       fill: 'rgba(255,255,255,1)',
-<<<<<<< HEAD
       fontSize: 15
-=======
-      fontSize: 22
->>>>>>> origin/master
     }));
   }
   if (tile_type === 12 || tile_type === 20) {
@@ -671,11 +663,7 @@ drawTableTile = function(x_pos, y_pos, tile, is_real_tile, i, j) {
       left: x_pos + 18,
       top: y_pos + 18,
       fill: 'rgba(255,255,255,1)',
-<<<<<<< HEAD
       fontSize: 15
-=======
-      fontSize: 22
->>>>>>> origin/master
     }));
   }
   if (tile_type === 13 || tile_type === 21) {
@@ -683,11 +671,7 @@ drawTableTile = function(x_pos, y_pos, tile, is_real_tile, i, j) {
       left: x_pos + 18,
       top: y_pos + 18,
       fill: 'rgba(255,255,255,1)',
-<<<<<<< HEAD
       fontSize: 15
-=======
-      fontSize: 22
->>>>>>> origin/master
     }));
   }
   if (tile_type === 14 || tile_type === 22) {
@@ -1337,8 +1321,4 @@ initiateUpgradeTypes = function() {
     types[i].rare_metal = rare_metal[i];
   }
   return types;
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> origin/master
