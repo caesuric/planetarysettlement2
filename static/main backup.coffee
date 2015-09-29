@@ -81,7 +81,7 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
                 if color!=-1
                     window.canvas.add new fabric.Circle(left: x_pos, top: y_pos, radius: 15, fill: color, stroke: color)
                 if tile_upgrade_built>-1
-                    window.canvas.add new fabric.Text('u', left: x_pos+18, top: y_pos+26, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+                    window.canvas.add new fabric.Text('u', left: x_pos+18, top: y_pos+26, fill: 'rgba(255,255,255,1)', fontSize: 22)
     playerNumber = 0
     for i in [0..players.length-1]
         player_data = players[i].split(",")
@@ -153,6 +153,16 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
     $(".upgrade").mouseout ->
         upgradeMouseOff()
 drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
+    # if i==9 and j==9
+        # return
+    # if i==9 and j==10
+        # return
+    # if i==10 and j==9
+        # return
+    # if i==10 and j==10
+        # return
+    # if i==11 and j==9
+        # return
     message = {}
     message.message = 'Drawing table tile '+i+'/'+j
     updater.socket.send(JSON.stringify(message))
@@ -231,11 +241,11 @@ drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
     if tile_counters>0
         group.add new fabric.Text(tile_counters.toString(), left: x_pos+33, top: y_pos+33, fill: 'rgb(255,255,255)', fontSize: 15)
     if tile_type==11 or tile_type==19
-        group.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+        group.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
     if tile_type==12 or tile_type==20
-        group.add new fabric.Text('D', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+        group.add new fabric.Text('D', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
     if tile_type==13 or tile_type==21
-        group.add new fabric.Text('U', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+        group.add new fabric.Text('U', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
     if tile_type==14 or tile_type==22
         group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,255,0,1)', stroke: 'rgba(255,255,0,1)')
     if tile_type==15 or tile_type==23
