@@ -392,7 +392,6 @@ class Game():
         if self.tile_number<=4:
             self.lay_tiles()
         else:
-            # self.push_turn_end(first_player)
             self.stock_resources()
             self.lay_workers()
     def worker_placed(self,message):
@@ -415,19 +414,53 @@ class Game():
                         self.push_updates()
                         for i in range(len(self.players)):
                             if i==self.worker_turn:
-                                self.push_message(self.players[i],"Place your worker.")
+                                self.push_message(self.players[i],"Place your robot.")
                                 self.players[i].workers_remaining-=1
                                 self.push_worker_lay(self.players[i],True)
                             else:
-                                self.push_message(self.players[i],"Other player placing worker.")
+                                self.push_message(self.players[i],"Other player placing robot.")
                                 self.push_worker_lay(self.players[i],False)
                         return
                     else:
-                        self.push_turn_end(first_player)
+                        # self.push_turn_end(first_player)
+                        self.worker_pickup()
                         return
         self.push_relay_worker(first_player)
+    def worker_pickup(self):
+        for i in self.players:
+            if i.is_first_player==True:
+                first_player = i
+        cornerstones = self.get_cornerstones()
+        regions = self.get_regions(cornerstones)
+        for j in range(1,5):
+            for i in regions:
+                workers=self.get_workers_placed(i)
+                if workers!=None:
+                    self.remove_workers(i,j)
+        for i in self.table_tiles:
+            for j in i:
+                if j != None:
+                    j.worker_placed=-1
+        self.push_updates()
+        self.push_turn_end(first_player)
+    def get_workers_placed(self,region):
+        workers = []
+        for player in self.players:
+            workers.append(0)
+        for tile in region:
+            if tile!=None:
+                workers[tile.worker_placed]+=1
+        return workers
+    def remove_workers(self,region,priority):
+        pass
+    def get_regions(self,cornerstones):
+        regions = []
+        if len(cornerstones)>0:
+            for i in cornerstones:
+                regions.append(self.get_region(i.x,i.y))
+        return regions
     def push_relay_worker(self,first_player):
-        self.push_message(first_player,"Place your worker.")
+        self.push_message(first_player,"Place your robot.")
         self.push_worker_lay(first_player,True)
     def rotate_worker_turn(self):
         initial_worker_turn=self.worker_turn
@@ -450,11 +483,11 @@ class Game():
                 self.worker_turn=i
         for i in self.players:
             if i.is_first_player==True:
-                self.push_message(i,"Place your worker.")
+                self.push_message(i,"Place your robot.")
                 i.workers_remaining-=1
                 self.push_worker_lay(i,True)
             else:
-                self.push_message(i,"Other player placing worker.")
+                self.push_message(i,"Other player placing robot.")
                 self.push_worker_lay(i,False)
     def push_worker_lay(self,client,active):
         client.handler.write_message2({"id": str(uuid.uuid4()), "message": "push_worker_lay", "active": active, "worker_turn": self.worker_turn})
