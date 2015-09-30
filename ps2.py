@@ -138,7 +138,6 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
         MainSocketHandler.waiters.remove(self)
     def on_message(self,message):
         parsed = tornado.escape.json_decode(message)
-        print ("{0} received {1}".format(self,parsed['message']))
         if parsed['message']=='tile_position_selected':
             self.game.tile_position_selected(parsed)
         elif parsed['message']=='tile_rotation_selected':
@@ -151,9 +150,6 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
             self.ready=True
             if len(self.message_queue)>0:
                 self.ready=False
-                print("{0} sending {1}".format(self,self.message_queue[0]['message']))
-                if self.message_queue[0]['message']=='push_message':
-                    print(self.message_queue[0]['text'])
                 self.write_message(self.message_queue.pop(0))
         elif parsed['message']=='request_update':
             self.game.push_update(self)
@@ -163,9 +159,6 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
         self.message_queue.append(message)
         if self.ready==True:
             self.ready=False
-            print("{0} sending {1}".format(self,self.message_queue[0]['message']))
-            if self.message_queue[0]['message']=='push_message':
-                print(self.message_queue[0]['text'])
             self.write_message(self.message_queue.pop(0))
 class Game():
     waiters = []
@@ -451,8 +444,91 @@ class Game():
             if tile!=None:
                 workers[tile.worker_placed]+=1
         return workers
-    def remove_workers(self,region,priority):
+    def remove_workers(self,region,type):
+        workers = self.get_workers_placed(region)
+        if sum(workers)==0:
+            return
+        if type==1:
+            electricity,water,information,metal,rare_metal=self.get_resources(region)
+            for i in region:
+                i.electricity=0
+                i.water=0
+                i.information=0
+                i.metal=0
+                i.rare_metal=0
+            for i in range(len(self.players)):
+                self.players[i].electricity+=workers[i]*(electricity/sum(workers))
+                self.players[i].water+=workers[i]*(water/sum(workers))
+                self.players[i].information+=workers[i]*(information/sum(workers))
+                self.players[i].metal+=workers[i]*(metal/sum(workers))
+                self.players[i].rare_metal+=workers[i]*(rare_metal/sum(workers))
+            region[0].electricity=electricity%(sum(workers))
+            region[0].water=water%(sum(workers))
+            region[0].information=information%(sum(workers))
+            region[0].metal=metal%(sum(workers))
+            region[0].rare_metal=rare_metal%(sum(workers))
+        elif type==2:
+            i=-1
+            while i!=self.worker_turn:
+                if i==-1:
+                    i=self.worker_turn
+                if workers[i]>0:
+                    self.bring_city_online(i)
+                i+=1
+                if i==len(self.players):
+                    i=0
+        elif type==3:
+            i=-1
+            while i!=self.worker_turn:
+                if i==-1:
+                    i=self.worker_turn
+                if workers[i]>0:
+                    self.build_upgrade(i)
+                i+=1
+                if i==len(self.players):
+                    i=0
+        elif type==4:
+            i=-1
+            while i!=self.worker_turn:
+                if i==-1:
+                    i=self.worker_turn
+                if workers[i]>0:
+                    self.construct_worker(i)
+                i+=1
+                if i==len(self.players):
+                    i=0
+    def get_workers_placed(self,region):
+        workers = []
+        for i in self.players:
+            workers.append(0)
+        for tile in region:
+            if (tile.worker_placed)>-1:
+                workers[tile.worker_placed]+=1
+        return workers
+    def bring_city_online(self,player_num):
         pass
+    def build_upgrade(self,player_num):
+        pass
+    def construct_worker(self,player_num):
+        pass
+    def get_resources(self,region):
+        electricity=0
+        water=0
+        information=0
+        metal=0
+        rare_metal=0
+        for i in region:
+            if i.electricity!=None:
+                electricity+=i.electricity
+            if i.water!=None:
+                water+=i.water
+            if i.information!=None:
+                information+=i.information
+            if i.metal!=None:
+                metal+=i.metal
+            if i.rare_metal!=None:
+                rare_metal+=i.rare_metal
+        return (electricity,water,information,metal,rare_metal)
     def get_regions(self,cornerstones):
         regions = []
         if len(cornerstones)>0:

@@ -447,6 +447,7 @@ updater =
         window.table_tiles = table_tiles
         players = message.players
         username = message.username
+        console.log(username)
         stack_tiles = message.stack_tiles
         renderTable(upgrades_available,table_tiles,players,username,stack_tiles)
         window.canvas.renderAll()
