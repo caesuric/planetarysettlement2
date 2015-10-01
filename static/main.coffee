@@ -436,6 +436,8 @@ updater =
             updater.processTurnEnd(message)
         else if message.message=='push_worker_lay'
             updater.processWorkerLay(message)
+        else if message.message=='push_dialog'
+            console.log(message.type)
         message.message = 'update_finished'
         updater.socket.send(JSON.stringify(message))
     processTurnEnd: (message) ->
