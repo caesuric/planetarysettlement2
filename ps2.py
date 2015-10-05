@@ -468,19 +468,24 @@ class Game():
             region[0].metal=metal%(sum(workers))
             region[0].rare_metal=rare_metal%(sum(workers))
         elif type==2:
+            for j in range(len(self.players)):
+                if self.players[j].is_first_player==True:
+                    first_player = j
             i=-1
-            while i!=self.worker_turn:
+            while i!=first_player:
                 if i==-1:
                     i=self.worker_turn
                 if workers[i]>0:
-                    print ("REACHED")
                     self.bring_city_online(i)
                 i+=1
                 if i==len(self.players):
                     i=0
         elif type==3:
+            for j in range(len(self.players)):
+                if self.players[j].is_first_player==True:
+                    first_player = j
             i=-1
-            while i!=self.worker_turn:
+            while i!=first_player:
                 if i==-1:
                     i=self.worker_turn
                 if workers[i]>0:
@@ -489,8 +494,11 @@ class Game():
                 if i==len(self.players):
                     i=0
         elif type==4:
+            for j in range(len(self.players)):
+                if self.players[j].is_first_player==True:
+                    first_player = j
             i=-1
-            while i!=self.worker_turn:
+            while i!=first_player:
                 if i==-1:
                     i=self.worker_turn
                 if workers[i]>0:
@@ -509,13 +517,16 @@ class Game():
     def bring_city_online(self,player_num):
         player = self.players[player_num]
         if (player.electricity+player.water+player.information+player.metal+player.rare_metal)<5:
+            print ('Not enough resources')
             return
         if (self.cities_to_be_brought_online()==False):
+            print ('No cities to be brought online')
             return
         for i in players:
             if i!=player:
                 push_message(i,'Other player bringing city online.')
             else:
+                print('Reached')
                 push_dialog(i,'bring_city_online','Would you like to bring a city tile online?')
         
         # if player_number==player_identity:
@@ -535,10 +546,11 @@ class Game():
                 # send_game_state()
     def cities_to_be_brought_online(self):
         city_found=False
-        for tile in self.table_tiles:
-            if tile.city_online_status==0 and tile.type in [1,3,4,5,6,8,10] and self.region_closed(self.get_region(tile.x,tile.y)):
-                city_found=True
-                break
+        for row in self.table_tiles:
+            for tile in row:
+                if tile!=None and tile.city_online_status==0 and tile.type in [1,3,4,5,6,8,10] and self.region_closed(self.get_region(tile.x,tile.y)):
+                    city_found=True
+                    break
         return city_found
     def push_dialog(player,type,text):
         client.handler.write_message2({"id": str(uuid.uuid4()), "message": "push_dialog", "type": type, "text": message})
@@ -590,8 +602,8 @@ class Game():
             i.workers_remaining = i.total_workers
         self.push_updates()
         for i in range(len(self.players)):
-                self.worker_turn=i
             if self.players[i].is_first_player==True:
+                self.worker_turn=i
         for i in self.players:
             if i.is_first_player==True:
                 self.push_message(i,"Place your robot.")
