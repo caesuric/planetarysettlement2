@@ -10,7 +10,6 @@ $(document).ready ->
     updater.start()
     window.tileTypes = initiateTileTypes()
     window.upgradeTypes = initiateUpgradeTypes()
-    window.selectingUpgrade=false
 costsString = (id) ->
     addCostIncreases(id)
     text = ""
@@ -59,10 +58,6 @@ costsString = (id) ->
 upgradeMouseOver = (upgrade_id) ->
     text = window.upgradeTypes[upgrade_id].name+'<br>'+costsString(upgrade_id)+'<br>'+window.upgradeTypes[upgrade_id].description+'<br>'+window.upgradeTypes[upgrade_id].description2+'<br>'+window.upgradeTypes[upgrade_id].description3
     document.getElementById('upgrade_float_text').innerHTML=text
-upgradeOnClick = (upgrade_id) ->
-    if window.selectingUpgrade==true
-        window.selectingUpgrade=false
-        updater.onUpgradeClick(upgrade_id)
 upgradeMouseOff = () ->
     document.getElementById('upgrade_float_text').innerHTML=''
 renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
@@ -86,7 +81,7 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
                 if color!=-1
                     window.canvas.add new fabric.Circle(left: x_pos, top: y_pos, radius: 15, fill: color, stroke: color)
                 if tile_upgrade_built>-1
-                    window.canvas.add new fabric.Text('u', left: x_pos+18, top: y_pos+26, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+                    window.canvas.add new fabric.Text('u', left: x_pos+18, top: y_pos+26, fill: 'rgba(255,255,255,1)', fontSize: 22)
     playerNumber = 0
     for i in [0..players.length-1]
         player_data = players[i].split(",")
@@ -157,32 +152,20 @@ renderTable = (upgrades_available,table_tiles,players,username,stack_tiles) ->
         upgradeMouseOver(parseInt(this.id.split("e")[1],10))
     $(".upgrade").mouseout ->
         upgradeMouseOff()
-    $(".upgrade").click ->
-        upgradeOnClick(parseInt(this.id.split("e")[1],10))
-    window.table_tiles=table_tiles
-    window.players = players
-    window.canvas.on 'mouse:move', (options) ->
-        x = Math.floor(options.e.clientX / 45)
-        y = Math.floor(options.e.clientY / 45)
-        if x>29
-            x=29
-        if y>29
-            y=29
-        upgrade = -1
-        if window.table_tiles[x][y]!=null and window.table_tiles[x][y]!=undefined
-            tile_data = window.table_tiles[x][y].split(",")
-            tile_upgrade_built = parseInt(tile_data[2],10)
-            if tile_upgrade_built>-1
-                upgrade = tile_upgrade_built
-        if upgrade==-1
-            upgradeMouseOff()
-        else
-            upgradeMouseOver(tile_upgrade_built)
-            owner = parseInt(tile_data[3],10)
-            owner_data = (window.players[owner].split(","))
-            owner_name = owner_data[10]
-            document.getElementById('upgrade_float_text').innerHTML+='Owner: '+owner_name
 drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
+    # if i==9 and j==9
+        # return
+    # if i==9 and j==10
+        # return
+    # if i==10 and j==9
+        # return
+    # if i==10 and j==10
+        # return
+    # if i==11 and j==9
+        # return
+    message = {}
+    message.message = 'Drawing table tile '+i+'/'+j
+    updater.socket.send(JSON.stringify(message))
     group = new fabric.Group()
     group.add new fabric.Rect(left: x_pos, top: y_pos, height: 45, width: 45, stroke: 'white', fill: 'transparent', strokeWidth: 2)
     tile_data = tile.split(",")
@@ -258,11 +241,11 @@ drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
     if tile_counters>0
         group.add new fabric.Text(tile_counters.toString(), left: x_pos+33, top: y_pos+33, fill: 'rgb(255,255,255)', fontSize: 15)
     if tile_type==11 or tile_type==19
-        group.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+        group.add new fabric.Text('W', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
     if tile_type==12 or tile_type==20
-        group.add new fabric.Text('D', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+        group.add new fabric.Text('D', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
     if tile_type==13 or tile_type==21
-        group.add new fabric.Text('U', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 15) # 22
+        group.add new fabric.Text('U', left: x_pos+18, top: y_pos+18, fill: 'rgba(255,255,255,1)', fontSize: 22)
     if tile_type==14 or tile_type==22
         group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,255,0,1)', stroke: 'rgba(255,255,0,1)')
     if tile_type==15 or tile_type==23
@@ -274,6 +257,9 @@ drawTableTile = (x_pos,y_pos,tile,is_real_tile,i,j) ->
     if tile_type==18 or tile_type==26
         group.add new fabric.Circle(left: x_pos+27, top: y_pos+27, radius: 9, fill: 'rgba(255,128,0,1)', stroke: 'rgba(255,128,0,1)')
     window.canvas.add(group)
+    message = {}
+    message.message = 'Finishing table tile '+i+'/'+j
+    updater.socket.send(JSON.stringify(message))
     return group
 upgrade_costs_met = (id) ->
     addCostIncreases(id)
@@ -460,14 +446,6 @@ updater =
             updater.processTurnEnd(message)
         else if message.message=='push_worker_lay'
             updater.processWorkerLay(message)
-        else if message.message=='push_dialog'
-            updater.processPushDialog(message)
-        else if message.message=='push_spend_freely'
-            updater.processSpendFreely(message)
-        else if message.message=='push_upgrade_select'
-            updater.processUpgradeSelect()
-        else if message.message=='push_upgrade_location_select'
-            updater.processUpgradeLocationSelect(parseInt(message.upgrade_id))
         message.message = 'update_finished'
         updater.socket.send(JSON.stringify(message))
     processTurnEnd: (message) ->
@@ -484,100 +462,6 @@ updater =
         window.canvas.renderAll()
     processPushMessage: (message) ->
         document.getElementById('message').innerHTML=message.text
-    processUpgradeSelect: () ->
-        document.getElementById('message').innerHTML='Select an upgrade to build.'
-        window.selectingUpgrade=true
-    processUpgradeLocationSelect: (upgrade_id) ->
-        window.canvas.on 'mouse:up', (options) ->
-            message = {}
-            message.x = Math.floor(options.e.clientX / 45)
-            message.y = Math.floor(options.e.clientY / 45)
-            message.message = 'upgrade_location_selected'
-            message.upgrade_id = upgrade_id
-            window.canvas.off 'mouse:up'
-            updater.socket.send(JSON.stringify(message))
-    onUpgradeClick: (upgrade_id) ->
-        message = {}
-        message.message = 'upgrade_selected'
-        message.upgrade_id = upgrade_id
-        updater.socket.send(JSON.stringify(message))
-    processPushDialog: (message) ->
-        if message.type=='bring_city_online'
-            document.getElementById('message').innerHTML = 'Would you like to bring a city online? <button onclick="updater.dialogCityYes()">Yes</button><button onclick="updater.dialogNo()">No</button>'
-        else if message.type=='construct_worker'
-            document.getElementById('message').innerHTML = 'Would you like to build a robot? <button onclick="updater.dialogWorkerYes()">Yes</button><button onclick="updater.dialogNo()">No</button>'
-        else if message.type=='build_upgrade'
-            document.getElementById('message').innerHTML = 'Would you like to build an upgrade? <button onclick="updater.dialogUpgradeYes()">Yes</button><button onclick="updater.dialogNo()">No</button>'
-    dialogNo: () ->
-        message = {}
-        message.message = 'next_event'
-        updater.socket.send(JSON.stringify(message))
-    dialogCityYes: () ->
-        document.getElementById('message').innerHTML = 'Select a city tile to bring online.'
-        window.canvas.on 'mouse:up', (options) ->
-            message = {}
-            message.x = Math.floor(options.e.clientX / 45)
-            message.y = Math.floor(options.e.clientY / 45)
-            message.message = 'city_delivery_position_selected'
-            window.canvas.off 'mouse:up'
-            updater.socket.send(JSON.stringify(message))
-    dialogWorkerYes: () ->
-        message = {}
-        message.message = 'construct_worker_confirmed'
-        updater.socket.send(JSON.stringify(message))
-    dialogUpgradeYes: () ->
-        message = {}
-        message.message = 'build_upgrade_confirmed'
-        updater.socket.send(JSON.stringify(message))
-    processSpendFreely: (message) ->
-        text = message.text+' <span style="color: #FFFF00;" onclick="updater.spendResources(0)">'+window.player_electricity+'</span>'
-        text = text+' <span style="color: #00FFFF;" onclick="updater.spendResources(1)">'+window.player_water+'</span>'
-        text = text+' <span style="color: #00E000;" onclick="updater.spendResources(2)">'+window.player_information+'</span>'
-        text = text+' <span style="color: #808080;" onclick="updater.spendResources(3)">'+window.player_metal+'</span>'
-        text = text+' <span style="color: #FF8000;" onclick="updater.spendResources(4)">'+window.player_rare_metal+'</span>'
-        document.getElementById('message').innerHTML = text
-        count = parseInt(message.count)
-        type = message.type
-        window.spendFreelySpent=0
-        window.spendFreelyMax=count
-        window.spendFreelyText=message.text
-        window.spendFreelyType=type
-    updateProcessSpendFreely: () ->
-        if window.spendFreelySpent<window.spendFreelyMax
-            text = window.spendFreelyText+' <span style="color: #FFFF00;" onclick="updater.spendResources(0)">'+window.player_electricity+'</span>'
-            text = text+' <span style="color: #00FFFF;" onclick="updater.spendResources(1)">'+window.player_water+'</span>'
-            text = text+' <span style="color: #00E000;" onclick="updater.spendResources(2)">'+window.player_information+'</span>'
-            text = text+' <span style="color: #808080;" onclick="updater.spendResources(3)">'+window.player_metal+'</span>'
-            text = text+' <span style="color: #FF8000;" onclick="updater.spendResources(4)">'+window.player_rare_metal+'</span>'
-            document.getElementById('message').innerHTML = text
-        else
-            message = {}
-            message.message = 'spent_freely'
-            message.type = window.spendFreelyType
-            message.electricity = window.player_electricity
-            message.water = window.player_water
-            message.information = window.player_information
-            message.metal = window.player_metal
-            message.rare_metal = window.player_rare_metal
-            updater.socket.send(JSON.stringify(message))
-    spendResources: (number) ->
-        if window.spendFreelySpent<window.spendFreelyMax
-            if number==0 and window.player_electricity>0
-                window.player_electricity-=1
-                window.spendFreelySpent+=1
-            else if number==1 and window.player_water>0
-                window.player_water-=1
-                window.spendFreelySpent+=1
-            else if number==2 and window.player_information>0
-                window.player_information-=1
-                window.spendFreelySpent+=1
-            else if number==3 and window.player_metal>0
-                window.player_metal-=1
-                window.spendFreelySpent+=1
-            else if number==4 and window.player_rare_metal>0
-                window.player_rare_metal-=1
-                window.spendFreelySpent+=1
-            updater.updateProcessSpendFreely()
     processTileLay: (message) ->
         group = drawTableTile(0,0,message.tile,false,0,0)
         updater.tile = message.tile
