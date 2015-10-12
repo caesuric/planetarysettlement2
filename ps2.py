@@ -755,7 +755,7 @@ class Game():
             upgrade.rare_metal-=1
         return returnValue
     def upgrade_owner_number(self,upgrade):
-        x,y = get_upgrade_location(upgrade)
+        x,y = self.get_upgrade_location(upgrade)
         if self.table_tiles[x] and self.table_tiles[x][y]:
             return self.table_tiles[x][y].upgrade_owner
     def get_upgrade_location(self,upgrade):
@@ -1218,12 +1218,27 @@ class Game():
     def all_upgrades_in_city_are_bureaucracy(upgrade):
         #STUB
         return True
-    def remove_counters_from_upgrade(upgrade,num):
-        #STUB
-        pass
-    def count_counters_on_upgrade(upgrade):
-        #STUB
-        return 0
+    def remove_counters_from_upgrade(self,upgrade,counters):
+        x,y = self.get_upgrade_location(upgrade)
+        if self.table_tiles[x] and self.table_tiles[x][y]:
+            tile = self.table_tiles[x][y]
+        else:
+            return False
+        if tile.counters>=counters:
+            tile.counters-=counters
+            return True
+        else:
+            return False
+    def count_counters_on_upgrade(self,upgrade):
+        x,y = self.get_upgrade_location(upgrade)
+        if self.table_tiles[x] and self.table_tiles[x][y]:
+            tile = self.table_tiles[x][y]
+        else:
+            return 0
+        if tile.counters!=None:
+            return tile.counters
+        else:
+            return 0
     def gain_any_combination_of_goods(player_num,num):
         #STUB
         pass
@@ -1301,10 +1316,10 @@ class Game():
         if tile.counters==None:
             tile.counters=0
         tile.counters+=counters
-    def trade_in_resources_for_vp(player_number,rate):
+    def trade_in_resources_for_vp(self,player_number,rate):
     #STUB
         pass
-    def gain_any_one_good(player_number,amount):
+    def gain_any_one_good(self,player_number,amount):
     #STUB
         pass
     def no_adjacent_upgrades(self,upgrade):
@@ -1379,13 +1394,6 @@ class Game():
         if bureaucracy_bought==True:
             count+=1
         return count
-    def count_counters_on_upgrade(self,num):
-        x,y = self.get_upgrade_location(upgrade)
-        tile = self.table_tiles[x][y]
-        if tile.counters!=None:
-            return tile.counters
-        else:
-            return 0
     def has_most_points(self,player):
         for participant in self.players:
             if participant.vp>player.vp:
