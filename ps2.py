@@ -42,7 +42,7 @@ class LoginSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         LoginSocketHandler.waiters.remove(self)
     def on_message(self,message):
-        username = tornado.escape.json_decode(message)['username']
+        username = tornado.escape.json_decode(message)['username'].strip()
         if username in self.usernames:
             self.raise_issue()
         elif username=="message" or username=="_xsrf":
@@ -62,6 +62,7 @@ class LobbySocketHandler(tornado.websocket.WebSocketHandler):
     waiters = set()
     challenges = []
     challenges_accepted = []
+    challenge_number=-1
     def open(self):
         LobbySocketHandler.waiters.add(self)
         self.username = self.get_secure_cookie("username")
@@ -71,11 +72,13 @@ class LobbySocketHandler(tornado.websocket.WebSocketHandler):
         self.update_usernames()
     def on_message(self,message):
         parsed = tornado.escape.json_decode(message)
+        # print parsed
         if parsed['message'] == "request_usernames":
             self.update_usernames()
         elif parsed['message'] == "request_own_name":
             self.write_message({"id": str(uuid.uuid4()), "message": "sending_name", "name": self.get_secure_cookie("username")})
         elif parsed['message'] == "challenge":
+            LobbySocketHandler.challenge_number+=1
             users = []
             accepted = []
             users.append(self.username)
@@ -85,31 +88,31 @@ class LobbySocketHandler(tornado.websocket.WebSocketHandler):
                     users.append(i)
                     accepted.append(False)
             for i in users:
-                for j in self.waiters:
+                for j in LobbySocketHandler.waiters:
                     if i==j.username:
-                        j.write_message({"id": str(uuid.uuid4()), "message": "challenge2", "usernames": users, "challenge_number": len(self.challenges)})
-            self.challenges.append(users)
-            self.challenges_accepted.append(accepted)
+                        j.write_message({"id": str(uuid.uuid4()), "message": "challenge2", "usernames": users, "challenge_number": LobbySocketHandler.challenge_number})
+            LobbySocketHandler.challenges.append(users)
+            LobbySocketHandler.challenges_accepted.append(accepted)
         elif parsed['message'] == "challenge3a":
             challenge_number = int(parsed['challenge_number'])
-            for i in range(0,len(self.challenges[challenge_number])):
-                if self.challenges[challenge_number][i]==self.username:
-                    self.challenges_accepted[challenge_number][i]=True
+            for i in range(0,len(LobbySocketHandler.challenges[challenge_number])):
+                if LobbySocketHandler.challenges[challenge_number][i]==self.username:
+                    LobbySocketHandler.challenges_accepted[challenge_number][i]=True
             challenge_ready = True
-            for i in self.challenges_accepted[challenge_number]:
+            for i in LobbySocketHandler.challenges_accepted[challenge_number]:
                 if i==False:
                     challenge_ready = False
             if challenge_ready == True:
-                for waiter in self.waiters:
-                    if waiter.username in self.challenges[challenge_number]:
+                for waiter in LobbySocketHandler.waiters:
+                    if waiter.username in LobbySocketHandler.challenges[challenge_number]:
                         waiter.write_message({"id": str(uuid.uuid4()), "message": "game_ready", "game_number": str(challenge_number)})
         elif parsed['message'] == "challenge3b":
             challenge_number = int(parsed['challenge_number'])
-            for i in range(0,len(self.challenges[challenge_number])):
-                if self.challenges[challenge_number][i]==self.username:
-                    self.challenges_accepted[challenge_number][i]=False
+            for i in range(0,len(LobbySocketHandler.challenges[challenge_number])):
+                if LobbySocketHandler.challenges[challenge_number][i]==self.username:
+                    LobbySocketHandler.challenges_accepted[challenge_number][i]=False
     def update_usernames(self):
-        for waiter in self.waiters:
+        for waiter in LobbySocketHandler.waiters:
             waiter.write_message({"id": str(uuid.uuid4()), "message": "usernames_updated", "usernames": LoginSocketHandler.usernames})
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -123,13 +126,13 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
         MainSocketHandler.waiters.add(self)
         self.username = self.get_secure_cookie("username")
         self.game_id = self.get_secure_cookie("game_id")
-        if self.game_id not in self.game_numbers:
-            self.game_numbers.append(self.game_id)
+        if self.game_id not in MainSocketHandler.game_numbers:
+            MainSocketHandler.game_numbers.append(self.game_id)
             self.game = Game(self.game_id)
-            self.games.append(self.game)
+            MainSocketHandler.games.append(self.game)
             tornado.ioloop.IOLoop.current().add_timeout(datetime.timedelta(seconds=1),self.start_game)
         else:
-            for i in self.games:
+            for i in MainSocketHandler.games:
                 if i.game_id==self.game_id:
                     self.game=i
         self.message_queue = []
@@ -138,6 +141,8 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
         MainSocketHandler.waiters.remove(self)
     def on_message(self,message):
         parsed = tornado.escape.json_decode(message)
+        # if parsed['message']!='update_finished':
+            # print "Received "+parsed['message']
         if parsed['message']=='tile_position_selected':
             self.game.tile_position_selected(parsed)
         elif parsed['message']=='tile_rotation_selected':
@@ -150,11 +155,14 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
             self.ready=True
             if len(self.message_queue)>0:
                 self.ready=False
+                # print ("Sent message: "+self.message_queue[0]['message'])
                 self.write_message(self.message_queue.pop(0))
         elif parsed['message']=='request_update':
             self.game.push_update(self)
         elif parsed['message']=='next_event':
             self.game.next_event()
+        elif parsed['message']=='next_bot_event':
+            self.game.next_bot_event()
         elif parsed['message']=='city_delivery_position_selected':
             self.game.bring_city_online_selected(self,parsed)
         elif parsed['message']=='construct_worker_confirmed':
@@ -169,19 +177,35 @@ class MainSocketHandler(tornado.websocket.WebSocketHandler):
             if parsed['type']=='bring_city_online':
                 self.game.bring_city_online_spent(self,parsed)
             elif parsed['type']=='construct_worker':
-                self.game.construct_worker_spent(self)
+                self.game.construct_worker_spent(self,parsed)
+        elif parsed['message']=='gained_freely':
+            self.game.gained_freely(self,parsed)
+        elif parsed['message']=='bot_gained_any_one_good':
+            self.game.bot_gained_any_one_good(self,parsed)
+        elif parsed['message']=='bot_selected_resource_for_opponent_to_lose':
+            self.game.bot_selected_resource_for_opponent_to_lose(self,parsed)
+        elif parsed['message']=='on_buy_gained_any_one_good':
+            self.game.on_buy_gained_any_one_good(self,parsed)
+        elif parsed['message']=='on_buy_gained_any_one_good_from_list':
+            self.game.on_buy_gained_any_one_good_from_list(self,parsed)
+        elif parsed['message']=='on_buy_traded_in_resources_for_vp':
+            self.game.on_buy_traded_in_resources_for_vp(self,parsed)
+        elif parsed['message']=='bot_traded_in_resources_for_vp':
+            self.game.bot_traded_in_resources_for_vp(self,parsed)
     def start_game(self):
         self.game.start()
     def write_message2(self,message):
         self.message_queue.append(message)
         if self.ready==True:
             self.ready=False
+            # print ("Sent message: "+self.message_queue[0]['message'])
             self.write_message(self.message_queue.pop(0))
 class Game():
-    waiters = []
     def __init__(self,game_id):
         self.game_id = game_id
         self.ready = False
+        self.testing = True #set this flag to enable testing mode
+        self.waiters = []
     def start(self):
         for i in MainSocketHandler.waiters:
             if i.game_id==self.game_id:
@@ -189,8 +213,12 @@ class Game():
         random.shuffle(self.waiters)
         self.tile_types = self.initiate_tile_types()
         self.upgrade_types = self.initiate_upgrade_types()
-        self.upgrades_available = [True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,
-                                   True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True]
+        if self.testing:
+            self.upgrades_available = [True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,
+                                        True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True]
+        if not self.testing:
+            self.upgrades_available = [True,True,False,True,False,True,True,True,True,True,True,True,True,True,True,True,
+                                        True,True,True,True,True,True,True,True,True,True,True,False,True,True,True,True]
         temp_tiles = []
         for i in range(14):
             a = Tile()
@@ -275,23 +303,27 @@ class Game():
         temp_tiles[10][10]=a
         a = Tile()
         a.tile_type = 1
-        a.city_online_status=2 #TEMP
+        if self.testing:
+            a.city_online_status=2
         temp_tiles[11][10]=a
         a.tile_orientation = 2
         a = Tile()
         a.tile_type = 1
         a.tile_orientation = 1
-        a.city_online_status=2 #TEMP
+        if self.testing:
+            a.city_online_status=2
         temp_tiles[9][11]=a
         a = Tile()
         a.tile_type = 1
         a.tile_orientation = 3
-        a.city_online_status=2 #TEMP
+        if self.testing:
+            a.city_online_status=2
         temp_tiles[10][11]=a
         a = Tile()
         a.tile_type = 1
         a.tile_orientation = 0
-        a.city_online_status=2 #TEMP
+        if self.testing:
+            a.city_online_status=2
         temp_tiles[11][11]=a
         for i in range(30):
             for j in range(30):
@@ -319,10 +351,7 @@ class Game():
         if not self.game_over:
             self.beginning_of_turn_phase()
             self.tile_number=1
-            # self.lay_tiles()
-            # TEMPORARY MEASURE TO MAKE TESTING FASTER (uncomment and comment out line above):
-            self.stock_resources()
-            self.lay_workers()
+            self.next_bot_event()
     def check_for_endgame(self):
         if len(self.stack_tiles)==0:
             self.endgame()
@@ -476,6 +505,19 @@ class Game():
             self.push_turn_end(first_player)
         else:
             self.event_queue.pop(0)(self.event_queue_args.pop(0))
+    def next_bot_event(self):
+        for i in self.players:
+            if i.is_first_player==True:
+                first_player = i
+        if self.event_queue == []:
+            self.push_updates()
+            if not self.testing:
+                self.lay_tiles()
+            if self.testing:
+                self.stock_resources()
+                self.lay_workers()
+        else:
+            self.event_queue.pop(0)(self.event_queue_args.pop(0))
     def get_workers_placed(self,region):
         workers = []
         for player in self.players:
@@ -576,7 +618,7 @@ class Game():
                 self.push_dialog(i,'bring_city_online','Would you like to bring a city tile online?')
     def construct_worker(self,player_num):
         player = self.players[player_num]
-        if (player.electricity+player.water+player.information+player.metal+player.rare_metal)<20:
+        if (player.electricity+player.water+player.information+player.metal+player.rare_metal)<15:
             return
         if player.total_workers>=5:
             return
@@ -636,6 +678,8 @@ class Game():
         y = int(message['y'])
         if not self.table_tiles[x] or not self.table_tiles[x][y] or self.table_tiles[x][y].tile_type not in [1,3,4,5,6,8,10] or self.table_tiles[x][y].city_online_status!=2 or self.table_tiles[x][y].upgrade_built!=-1:
             self.build_upgrade(player_num)
+        elif self.upgrades_available[10]==False and self.upgrade_owner_number(10)==player_num:
+            self.on_buy_gain_any_one_good_from_list(player,3,upgrade_id,x,y)
         else:
             self.table_tiles[x][y].upgrade_built=upgrade_id
             self.table_tiles[x][y].upgrade_owner=player_num
@@ -648,18 +692,18 @@ class Game():
         cost_increase = 0
         if self.upgrades_available[25]==False:
             if self.upgrade_owner_number(25)!=player_number:
-                if self.upgrades_available[16]==True or (self.upgrades_available[16]==False and upgrade_owner_number(16)!=player_number):
-                    cost_increase = get_highest_costed_resource(row)
+                if self.upgrades_available[16]==True or (self.upgrades_available[16]==False and self.upgrade_owner_number(16)!=player_number):
+                    cost_increase = self.get_highest_costed_resource(row)
         if cost_increase==1:
-            upgrade.electricity+=1
+            upgrade.electricity+=2
         elif cost_increase==2:
-            upgrade.water+=1
+            upgrade.water+=2
         elif cost_increase==3:
-            upgrade.information+=1
+            upgrade.information+=2
         elif cost_increase==4:
-            upgrade.metal+=1
+            upgrade.metal+=2
         elif cost_increase==5:
-            upgrade.rare_metal+=1
+            upgrade.rare_metal+=2
         returnValue = True
         if player.electricity<upgrade.electricity:
             returnValue = False
@@ -673,65 +717,52 @@ class Game():
             returnValue = False
         if returnValue == False:
             if cost_increase==1:
-                upgrade.electricity-=1
+                upgrade.electricity-=2
             elif cost_increase==2:
-                upgrade.water-=1
+                upgrade.water-=2
             elif cost_increase==3:
-                upgrade.information-=1
+                upgrade.information-=2
             elif cost_increase==4:
-                upgrade.metal-=1
+                upgrade.metal-=2
             elif cost_increase==5:
-                upgrade.rare_metal-=1
+                upgrade.rare_metal-=2
             return False
-        if self.upgrades_available[10]==False:
-            if self.upgrade_owner_number(10)==player_number:
-                if upgrade.electricity>1 or upgrade.water>1 or upgrade.information>1 or upgrade.metal>1 or upgrade.rare_metal>1:
-                    x = self.select_resource("Choose a resource to discount on upgrade purchase:",(player.electricity,player.water,player.information,player.metal,player.rare_metal))
-                    while x==0 or (x==1 and upgrade.electricity<2) or (x==2 and upgrade.water<2) or (x==3 and upgrade.information<2) or (x==4 and upgrade.metal<2) or (x==5 and upgrade.rare_metal<2):
-                        x = self.select_resource("Choose a resource to discount on upgrade purchase:",(player.electricity,player.water,player.information,player.metal,player.rare_metal))
-                    if x==1:
-                        player.electricity+=1
-                    elif x==2:
-                        player.water+=1
-                    elif x==3:
-                        player.information+=1
-                    elif x==4:
-                        player.metal+=1
-                    elif x==5:
-                        player.rare_metal+=1
         player.electricity-=upgrade.electricity
         player.water-=upgrade.water
         player.information-=upgrade.information
         player.metal-=upgrade.metal
         player.rare_metal-=upgrade.rare_metal
         if cost_increase==1:
-            upgrade.electricity-=1
+            upgrade.electricity-=2
         elif cost_increase==2:
-            upgrade.water-=1
+            upgrade.water-=2
         elif cost_increase==3:
-            upgrade.information-=1
+            upgrade.information-=2
         elif cost_increase==4:
-            upgrade.metal-=1
+            upgrade.metal-=2
         elif cost_increase==5:
-            upgrade.rare_metal-=1
+            upgrade.rare_metal-=2
         return True
     def upgrade_costs_not_met(self,player,upgrade_id):
+        for i in range(len(self.players)):
+            if self.players[i]==player:
+                player_number=i
         upgrade = self.upgrade_types[upgrade_id]
         cost_increase = 0
         if self.upgrades_available[25]==False:
             if self.upgrade_owner_number(25)!=player_number:
-                if game_state.upgrades_available[16]==True or (game_state.upgrades_available[16]==False and upgrade_owner_number(16)!=player_number):
-                    cost_increase = self.get_highest_costed_resource(row)
+                if self.upgrades_available[16]==True or (self.upgrades_available[16]==False and self.upgrade_owner_number(16)!=player_number):
+                    cost_increase = self.get_highest_costed_resource(upgrade_id)
         if cost_increase==1:
-            upgrade.electricity+=1
+            upgrade.electricity+=2
         elif cost_increase==2:
-            upgrade.water+=1
+            upgrade.water+=2
         elif cost_increase==3:
-            upgrade.information+=1
+            upgrade.information+=2
         elif cost_increase==4:
-            upgrade.metal+=1
+            upgrade.metal+=2
         elif cost_increase==5:
-            upgrade.rare_metal+=1
+            upgrade.rare_metal+=2
         returnValue=False
         if player.electricity<upgrade.electricity:
             returnValue=True
@@ -744,15 +775,15 @@ class Game():
         if player.rare_metal<upgrade.rare_metal:
             returnValue=True
         if cost_increase==1:
-            upgrade.electricity-=1
+            upgrade.electricity-=2
         elif cost_increase==2:
-            upgrade.water-=1
+            upgrade.water-=2
         elif cost_increase==3:
-            upgrade.information-=1
+            upgrade.information-=2
         elif cost_increase==4:
-            upgrade.metal-=1
+            upgrade.metal-=2
         elif cost_increase==5:
-            upgrade.rare_metal-=1
+            upgrade.rare_metal-=2
         return returnValue
     def upgrade_owner_number(self,upgrade):
         x,y = self.get_upgrade_location(upgrade)
@@ -780,12 +811,18 @@ class Game():
         for participant in self.players:
             if participant.handler==handler:
                 player=participant
-        self.push_spend_freely(player,'Spend 20 to build a robot.',20,'construct_worker')
-    def construct_worker_spent(self,handler):
+        self.push_spend_freely(player,'Spend 15 to build a robot.',15,'construct_worker')
+    def construct_worker_spent(self,handler,message):
         for participant in self.players:
             if participant.handler==handler:
                 player = participant
+        player.electricity = int(message['electricity'])
+        player.water = int(message['water'])
+        player.information = int(message['information'])
+        player.metal = int(message['metal'])
+        player.rare_metal = int(message['rare_metal'])
         player.total_workers+=1
+        self.push_updates()
         self.next_event()
     def bring_city_online_selected(self,handler,message):
         for participant in self.players:
@@ -818,7 +855,9 @@ class Game():
         player.metal = int(message['metal'])
         player.rare_metal = int(message['rare_metal'])
         if self.entire_city_online(self.get_city_region(self.x_selected,self.y_selected)):
-            player.vp+=1
+            player.vp+=2
+            if self.upgrades_available[5]==False:
+                self.players[self.upgrade_owner_number(5)].vp+=1
             for tile in self.get_city_region(self.x_selected,self.y_selected):
                 tile.city_online_status=2
             moving_to_upgrades=True
@@ -829,6 +868,17 @@ class Game():
             self.bring_city_online(player_num)
         else:
             self.next_event()
+    def gained_freely(self,handler,message):
+        for participant in self.players:
+            if participant.handler==handler:
+                player=participant
+        player.electricity = int(message['electricity'])
+        player.water = int(message['water'])
+        player.information = int(message['information'])
+        player.metal = int(message['metal'])
+        player.rare_metal = int(message['rare_metal'])
+        self.push_updates()
+        self.next_bot_event()
     def entire_city_online(self,region):
         value = True
         for tile in region:
@@ -1159,7 +1209,7 @@ class Game():
         elif upgrade==8:
             if self.remove_counters_from_upgrade(upgrade,1)==True:
                 if self.count_counters_on_upgrade(upgrade)==0:
-                    self.gain_any_combination_of_goods(player_identity,6)
+                    self.gain_any_combination_of_goods(self.upgrade_owner_number(upgrade),6)
         elif upgrade==12:
             self.upgrade_owner(upgrade).metal+=2
         elif upgrade==13:
@@ -1167,7 +1217,7 @@ class Game():
                 if self.count_counters_on_upgrade(upgrade)==0:
                     self.upgrade_owner(upgrade).vp+=8
         elif upgrade==14:
-           self.gain_any_one_good(self.upgrade_owner(upgrade),2)
+           self.bot_gain_any_one_good(self.upgrade_owner(upgrade),2)
         elif upgrade==20:
             if self.remove_counters_from_upgrade(upgrade,1)==True:
                 if self.count_counters_on_upgrade(upgrade)==0:
@@ -1175,48 +1225,42 @@ class Game():
         elif upgrade==22:
             if self.remove_counters_from_upgrade(upgrade,1)==True:
                 if self.count_counters_on_upgrade(upgrade)==0:
-                    self.gain_any_one_good(player_identity,7)
+                    self.bot_gain_any_one_good(self.upgrade_owner(upgrade),7)
         elif upgrade==24:
-            self.trade_in_resources_for_vp(player_identity,4)
+            self.bot_trade_in_resources_for_vp(self.upgrade_owner(upgrade),4)
         elif upgrade==28:
             upgrade_owner=self.upgrade_owner(upgrade)
             least = True
-            for participant in players:
+            for participant in self.players:
                 if participant!=upgrade_owner:
                     if participant.electricity<=upgrade_owner.electricity:
                         least = False
             if least==True:
                 upgrade_owner.electricity+=3
         elif upgrade==30:
-            x = self.select_resource_for_opponent_to_lose("Select a resource for your opponent to lose.")
-            upgrade_owner=self.upgrade_owner(upgrade)
-            for participant in self.players:
-                if participant!=upgrade_owner:
-                    if x==1:
-                        if participant.electricity>0:
-                            participant.electricity-=1
-                    elif x==2:
-                        if participant.water>0:
-                            participant.water-=1
-                    elif x==3:
-                        if participant.information>0:
-                            participant.information-=1
-                    elif x==4:
-                        if participant.metal>0:
-                            participant.metal-=1
-                    elif x==5:
-                        if participant.rare_metal>0:
-                            participant.rare_metal-=1
+            self.bot_select_resource_for_opponent_to_lose(self.upgrade_owner_number(upgrade))
+            self.bot_select_resource_for_opponent_to_lose(self.upgrade_owner_number(upgrade))
+            self.bot_select_resource_for_opponent_to_lose(self.upgrade_owner_number(upgrade))
         elif upgrade==31:
             self.add_counters_to_upgrade(upgrade,1)
             if self.count_counters_on_upgrade(upgrade)>=2:
                 if self.all_upgrades_in_city_are_bureaucracy(upgrade):
-                    self.use_the_hive(player_identity)
-    def use_the_hive(player_num):
-        #STUB
-        pass
-    def all_upgrades_in_city_are_bureaucracy(upgrade):
-        #STUB
+                    self.use_the_hive(self.upgrade_owner(upgrade))
+    def use_the_hive(self,player):
+        while self.count_counters_on_upgrade(31)>=2:
+            self.remove_counters_from_upgrade(31,2)
+            player.vp+=3
+            self.push_updates()
+    def all_upgrades_in_city_are_bureaucracy(self,upgrade):
+        x,y=self.get_upgrade_location(upgrade)
+        if self.table_tiles[x] and self.table_tiles[x][y]:
+            tile = self.table_tiles[x][y]
+        else:
+            return False
+        region = self.get_city_region(x,y)
+        for element in region:
+            if element.upgrade_built!=-1 and element.upgrade_built<24:
+                return False
         return True
     def remove_counters_from_upgrade(self,upgrade,counters):
         x,y = self.get_upgrade_location(upgrade)
@@ -1239,9 +1283,14 @@ class Game():
             return tile.counters
         else:
             return 0
-    def gain_any_combination_of_goods(player_num,num):
-        #STUB
-        pass
+    def gain_any_combination_of_goods(self,player_num,num):
+        self.event_queue.append(self.push_gain_any_combination_of_goods)
+        text = "Click to gain "+str(num)+" resources."
+        self.event_queue_args.append((player_num,num,text))
+    def push_gain_any_combination_of_goods(self,args):
+        player_num,num,text = args
+        client = self.players[player_num]
+        client.handler.write_message2({"id": str(uuid.uuid4()), "message": "push_gain_any_combination_of_goods", "count": num, "text": text})
     def on_buy(self,player_number,upgrade):
         player = self.players[player_number]
         if upgrade==2:
@@ -1259,7 +1308,7 @@ class Game():
             self.add_counters_to_upgrade(upgrade,2)
         elif upgrade==9:
             player.vp+=1
-            self.gain_any_one_good(player_number,5)
+            self.on_buy_gain_any_one_good(self.players[player_number],5)
         elif upgrade==13:
             player.vp-=1
             self.add_counters_to_upgrade(upgrade,1)
@@ -1277,14 +1326,14 @@ class Game():
         elif upgrade==21:
             player.vp+=6
         elif upgrade==22:
-            self.gain_any_one_good(player_number,7)
+            self.on_buy_gain_any_one_good(self.players[player_number],7)
             self.add_counters_to_upgrade(upgrade,1)
         elif upgrade==23:
             player.vp+=8
         elif upgrade==26:
             highest=0
             target=None
-            for participant in players:
+            for participant in self.players:
                 if participant.vp>highest or (participant.vp==highest and target==player):
                     target=participant
             if target.vp>=5:
@@ -1297,31 +1346,172 @@ class Game():
         x,y = self.get_upgrade_location(upgrade)
         count = 0
         if self.table_tiles[x-1] and self.table_tiles[x-1][y] and self.table_tiles[x-1][y].upgrade_built>7:
-            if self.x_in_y(self.table_tiles[x-1][y],self.get_city_region[x][y]):
+            if self.x_in_y(self.table_tiles[x-1][y],self.get_city_region(x,y)):
                 count+=1
         if self.table_tiles[x+1] and self.table_tiles[x+1][y] and self.table_tiles[x+1][y].upgrade_built>7:
-            if self.x_in_y(self.table_tiles[x+1][y],self.get_city_region[x][y]):
+            if self.x_in_y(self.table_tiles[x+1][y],self.get_city_region(x,y)):
                 count+=1
         if self.table_tiles[x] and self.table_tiles[x][y-1] and self.table_tiles[x][y-1].upgrade_built>7:
-            if self.x_in_y(self.table_tiles[x][y-1],self.get_city_region[x][y]):
+            if self.x_in_y(self.table_tiles[x][y-1],self.get_city_region(x,y)):
                 count+=1
         if self.table_tiles[x] and self.table_tiles[x][y+1] and self.table_tiles[x][y+1].upgrade_built>7:
-            if self.x_in_y(self.table_tiles[x][y+1],self.get_city_region[x][y]):
+            if self.x_in_y(self.table_tiles[x][y+1],self.get_city_region(x,y)):
                 count+=1
         return count
     def add_counters_to_upgrade(self,upgrade,counters):
         x,y = self.get_upgrade_location(upgrade)
-        print x,y
         tile = self.table_tiles[x][y]
-        if tile.counters==None:
-            tile.counters=0
-        tile.counters+=counters
+        if tile!=None:
+            if tile.counters==None:
+                tile.counters=0
+            tile.counters+=counters
     def trade_in_resources_for_vp(self,player_number,rate):
-    #STUB
-        pass
-    def gain_any_one_good(self,player_number,amount):
-    #STUB
-        pass
+        self.push_updates()
+        player = self.players[player_number]
+        self.event_queue.append(self.on_buy_push_trade_in_resources_for_vp)
+        self.event_queue_args.append((player,rate))
+    def on_buy_push_trade_in_resources_for_vp(self,args):
+        client,rate=args
+        client.handler.write_message2({"id": str(uuid.uuid4()), "message": "on_buy_trade_in_resources_for_vp", "rate": rate})
+    def on_buy_traded_in_resources_for_vp(self,handler,message):
+        for participant in self.players:
+            if participant.handler==handler:
+                player = participant
+        spent = int(message['spent'])
+        rate = int(message['rate'])
+        player.electricity = int(message['electricity'])
+        player.water = int(message['water'])
+        player.information = int(message['information'])
+        player.metal = int(message['metal'])
+        player.rare_metal = int(message['rare_metal'])
+        player.vp+=(spent/rate)
+        self.push_updates()
+        self.next_event()
+    def bot_trade_in_resources_for_vp(self,player,rate):
+        self.push_updates()
+        self.event_queue.append(self.bot_push_trade_in_resources_for_vp)
+        self.event_queue_args.append((player,rate))
+    def bot_push_trade_in_resources_for_vp(self,args):
+        client,rate=args
+        client.handler.write_message2({"id": str(uuid.uuid4()), "message": "bot_trade_in_resources_for_vp", "rate": rate})
+    def bot_traded_in_resources_for_vp(self,handler,message):
+        for participant in self.players:
+            if participant.handler==handler:
+                player = participant
+        spent = int(message['spent'])
+        rate = int(message['rate'])
+        player.electricity = int(message['electricity'])
+        player.water = int(message['water'])
+        player.information = int(message['information'])
+        player.metal = int(message['metal'])
+        player.rare_metal = int(message['rare_metal'])
+        player.vp+=(spent/rate)
+        self.push_updates()
+        self.next_bot_event()
+    def bot_gain_any_one_good(self,player,amount):
+        self.event_queue.append(self.bot_push_gain_any_one_good)
+        text = "Click to gain "+str(amount)+" resources of any one type."
+        self.event_queue_args.append((player,amount,text))
+    def bot_push_gain_any_one_good(self,args):
+        client,amount,text=args
+        client.handler.write_message2({"id": str(uuid.uuid4()), "message": "bot_push_gain_any_one_good", "count": amount, "text": text})
+    def bot_gained_any_one_good(self,handler,message):
+        for participant in self.players:
+            if participant.handler==handler:
+                player=participant
+        player.electricity = int(message['electricity'])
+        player.water = int(message['water'])
+        player.information = int(message['information'])
+        player.metal = int(message['metal'])
+        player.rare_metal = int(message['rare_metal'])
+        self.push_updates()
+        self.next_bot_event()
+    def on_buy_gain_any_one_good(self,player,amount):
+        self.push_updates()
+        self.event_queue.append(self.on_buy_push_gain_any_one_good)
+        text = "Click to gain "+str(amount)+" resources of any one type."
+        self.event_queue_args.append((player,amount,text))
+    def on_buy_push_gain_any_one_good(self,args):
+        client,amount,text=args
+        client.handler.write_message2({"id": str(uuid.uuid4()), "message": "on_buy_gain_any_one_good", "count": amount, "text": text})
+    def on_buy_gained_any_one_good(self,handler,message):
+        for participant in self.players:
+            if participant.handler==handler:
+                player=participant
+        player.electricity = int(message['electricity'])
+        player.water = int(message['water'])
+        player.information = int(message['information'])
+        player.metal = int(message['metal'])
+        player.rare_metal = int(message['rare_metal'])
+        self.push_updates()
+        self.next_event()
+    def on_buy_gain_any_one_good_from_list(self,player,amount,upgrade_num,x,y):
+        self.push_updates()
+        text = "Click to gain "+str(amount)+" resources of any listed type."
+        upgrade = self.upgrade_types[upgrade_num]
+        electricity=upgrade.electricity
+        water=upgrade.water
+        information=upgrade.information
+        metal=upgrade.metal
+        rare_metal=upgrade.rare_metal
+        # self.event_queue.append(self.on_buy_push_gain_any_one_good_from_list)
+        # self.event_queue_args.append((player,amount,text,electricity,water,information,metal,rare_metal,x,y,upgrade_num))
+        self.on_buy_push_gain_any_one_good_from_list((player,amount,text,electricity,water,information,metal,rare_metal,x,y,upgrade_num))
+    def on_buy_push_gain_any_one_good_from_list(self,args):
+        self.push_updates()
+        client,amount,text,electricity,water,information,metal,rare_metal,x,y,upgrade_num=args
+        client.handler.write_message2({"id": str(uuid.uuid4()), "message": "on_buy_gain_any_one_good_from_list", "count": amount, "text": text, "electricity": electricity, "water": water, "information": information, "metal": metal, "rare_metal": rare_metal, "x": x, "y": y, "upgrade_num": upgrade_num})
+    def on_buy_gained_any_one_good_from_list(self,handler,message):
+        x = message['x']
+        y = message['y']
+        upgrade_id = message['upgrade_num']
+        for participant in self.players:
+            if participant.handler==handler:
+                player=participant
+        for i in range(len(self.players)):
+            if self.players[i]==player:
+                player_num=i
+        player.electricity = int(message['electricity'])
+        player.water = int(message['water'])
+        player.information = int(message['information'])
+        player.metal = int(message['metal'])
+        player.rare_metal = int(message['rare_metal'])
+        self.table_tiles[x][y].upgrade_built=upgrade_id
+        self.table_tiles[x][y].upgrade_owner=player_num
+        self.upgrades_available[upgrade_id]=False
+        self.on_buy(player_num,upgrade_id)
+        self.push_updates()
+        self.next_event()
+    def bot_select_resource_for_opponent_to_lose(self,player_num):
+        if player_num!=None:
+            self.event_queue.append(self.bot_push_select_resource_for_opponent_to_lose)
+            self.event_queue_args.append(self.players[player_num])
+    def bot_push_select_resource_for_opponent_to_lose(self,client):
+        client.handler.write_message2({"id": str(uuid.uuid4()), "message": "bot_select_resource_for_opponent_to_lose"})
+    def bot_selected_resource_for_opponent_to_lose(self,handler,message):
+        for participant in self.players:
+            if participant.handler==handler:
+                player=participant
+        x=int(message['x'])
+        for participant in self.players:
+            if participant!=player:
+                if x==0:
+                    if participant.electricity>0:
+                        participant.electricity-=1
+                elif x==1:
+                    if participant.water>0:
+                        participant.water-=1
+                elif x==2:
+                    if participant.information>0:
+                        participant.information-=1
+                elif x==3:
+                    if participant.metal>0:
+                        participant.metal-=1
+                elif x==4:
+                    if participant.rare_metal>0:
+                        participant.rare_metal-=1
+        self.push_updates()
+        self.next_bot_event()
     def no_adjacent_upgrades(self,upgrade):
         x,y = self.get_upgrade_location(upgrade)
         if self.table_tiles[x-1] and self.table_tiles[x-1][y] and self.table_tiles[x-1][y].upgrade_built>-1:
@@ -1341,7 +1531,8 @@ class Game():
         kill_list = []
         for row in self.table_tiles:
             for tile in row:
-                cities.append(get_city_region(tile))
+                if tile!=None:
+                    cities.append(self.get_city_region(tile.x,tile.y))
         for i in cities:
             if i==None or self.x_in_y(None,i) or self.region_closed(i)!=True:
                 kill_list.append(i)
@@ -1356,7 +1547,7 @@ class Game():
                 if difference_found==False:
                     kill_list.append(cities[j])
         for i in kill_list:
-            if x_in_y(i,cities):
+            if self.x_in_y(i,cities):
                 cities.remove(i)
         return len(cities)
     def count_finance_upgrades_bought(self):
@@ -1410,23 +1601,30 @@ class Game():
     def endgame(self):
         self.game_over=True
         if self.upgrades_available[0]==False:
-            if at_least_one_other_upgrade_owned_in_city(0,player_identity):
-                self.players[upgrade_owner_number(0)].vp+=1
+            if self.at_least_one_other_upgrade_owned_in_city(0,self.upgrade_owner(0)):
+                self.upgrade_owner(0).vp+=1
         if self.upgrades_available[11]==False:
-            self.upgrade_owner(11).vp+=(count_cities()/2)
+            self.upgrade_owner(11).vp+=(self.count_cities()/2)
         if self.upgrades_available[15]==False:
-            self.upgrade_owner(15).vp+=(count_finance_upgrades_bought())
+            self.upgrade_owner(15).vp+=(self.count_finance_upgrades_bought())
         if self.upgrades_available[24]==False:
-            self.upgrade_owner(24).vp+=(total_resources(upgrade_owner(24))/4)
+            self.upgrade_owner(24).vp+=(self.total_resources(self.upgrade_owner(24))/4)
         if self.upgrades_available[29]==False:
-            self.upgrade_owner(29).vp+=(2*count_upgrade_categories_bought())
+            self.upgrade_owner(29).vp+=(2*self.count_upgrade_categories_bought())
         if self.upgrades_available[31]==False:
-            self.upgrade_owner(31).vp+=(3*(count_counters_on_upgrade(31)/2))
+            self.upgrade_owner(31).vp+=(3*(self.count_counters_on_upgrade(31)/2))
+        self.push_updates()
         for player in self.players:
             if self.has_most_points(player):
                 self.push_message(player,'YOU WIN!')
             else:
                 self.push_message(player,'You have lost.')
+    def at_least_one_other_upgrade_owned_in_city(self,upgrade,player):
+        x,y = self.get_upgrade_location(upgrade)
+        for i in self.get_city_region(x,y):
+            if i.upgrade_built!=None and i.upgrade_built!=-1 and i.upgrade_built!=upgrade and self.players[i.upgrade_owner]==player:
+                return True
+        return False
     def initiate_tile_types (self):
         types = []
         for i in range(27):
@@ -1472,18 +1670,18 @@ class Game():
                         "When bought, look at the top 20 land tiles and rearrange in any order.","+1 VP. +2 VP for every adjacent non-data hosting upgrade in this city.",
                         "When you buy this, go through the tile stack and remove four tiles of your",
                         "+2 VP. +1 VP whenever a city is brought online.","+3 information per turn.","+1 VP per turn.","Put two counters on this. Remove one each turn. When there are no more",
-                        "Gain 1 VP. Gain 5 of any one good immediately.","Each upgrade you buy costs one less of any one resource (min. 1 of any",
+                        "Gain 1 VP. Gain 5 of any one good immediately.","When you buy an upgrade, gain 3 of any resource you paid as part of the",
                         "At the end of the game, +1 VP for every 2 enclosed cities.","Every turn, +2 metal.","Pay 1 VP immediately. +8 VP at the beginning of the next turn.",
                         "Each turn, +2 of any resource.","+2 VP. +1 VP per Finance upgrade bought at the end of the game.","You are not affected by cost increases.","+2 VP",
                         "When bought, trade in any number of resources. +1 VP / 3 resources.","+4 VP","+6 water immediately. +6 water on your next turn.","+6 VP",
                         "+7 of any one resource immediately. +7 of any one resource at the","+8 VP","Pay 4 resources at any time: +1 VP",
-                        "All upgrades for other players cost +1 of the resource they require the most.","When bought, the player with the most VP loses 5 VP.",
+                        "All upgrades for other players cost +2 of the resource they require the most.","When bought, the player with the most VP loses 5 VP.",
                         "Once per game, you may sell another upgrade for 5 VP.","If you have the least electricity of any player, +3 electricity per turn.",
                         "+2 VP at the end of the game for each upgrade category bought.",
-                        "Other players lose one resource of your choice at the beginning of each turn.",
+                        "Other players lose three resources of your choice at the beginning of each turn.",
                         "+1 counter per turn. Remove two counters: If all upgrades in this city are"]
         descriptions2 = ["","","","","choice. Play those instead of drawing on your next turn. Once per turn, you","","","",
-                        "counters, gain 6 of any combination of goods.","","listed resource.)","","","","","","","","","","","","beginning of next turn.","","","","","","","",
+                        "counters, gain 6 of any combination of goods.","","cost.","","","","","","","","","","","","beginning of next turn.","","","","","","","",
                         "","Bureaucracy, +3 VP"]
         descriptions3 = ["","","","","may pay 1 information to gain 1 water.","","","","","","","","","","","","","","","","","","","","","","","","","","",""]
         electricity = [0,0,0,0,0,0,0,0,1,1,3,3,6,4,5,4,0,0,1,1,0,0,3,1,0,0,0,0,0,0,0,0]
