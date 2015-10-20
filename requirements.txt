@@ -4,8 +4,6 @@ PIL==1.1.7
 Pillow==2.7.0
 PyInstaller==2.1
 PyPDF2==1.25.1
---allow-unverified PyRTF
-PyRTF==0.45
 backports.ssl-match-hostname==3.4.0.2
 certifi==2015.04.28
 comtypes==1.1.1
