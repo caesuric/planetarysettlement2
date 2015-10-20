@@ -1,4 +1,4 @@
-var TileType, UpgradeType, addCostIncreases, costsString, drawTableTile, getRotatedTileType, getRotation, get_city_connected, get_city_region, get_connected, get_highest_costed_resource, get_immediately_city_connected, get_immediately_connected, get_region, initiateTileTypes, initiateUpgradeTypes, region_closed, removeCostIncreases, renderTable, updater, upgradeMouseOff, upgradeMouseOver, upgradeOnClick, upgrade_costs_met, upgrade_owner_number, x_in_y;
+var TileType, UpgradeType, addCostIncreases, costsString, drawTableTile, getRotatedTileType, getRotation, get_city_connected, get_city_region, get_connected, get_highest_costed_resource, get_immediately_city_connected, get_immediately_connected, get_region, get_upgrade_x, get_upgrade_y, initiateTileTypes, initiateUpgradeTypes, region_closed, removeCostIncreases, renderTable, updater, upgradeMouseOff, upgradeMouseOver, upgradeOnClick, upgrade_costs_met, upgrade_owner_number, x_in_y;
 
 $(document).ready(function() {
   if (!window.console) {
@@ -156,11 +156,11 @@ renderTable = function(upgrades_available, table_tiles, players, username, stack
   player_water = player_data[5];
   player_workers_remaining = player_data[8];
   player_total_workers = player_data[9];
-  window.player_electricity = player_electricity;
-  window.player_information = player_information;
-  window.player_metal = player_metal;
-  window.player_rare_metal = player_rare_metal;
-  window.player_water = player_water;
+  window.player_electricity = parseInt(player_electricity, 10);
+  window.player_information = parseInt(player_information, 10);
+  window.player_metal = parseInt(player_metal, 10);
+  window.player_rare_metal = parseInt(player_rare_metal, 10);
+  window.player_water = parseInt(player_water, 10);
   window.upgrades_available = upgrades_available;
   window.player_number = playerNumber;
   window.player_identity = playerNumber;
@@ -250,7 +250,7 @@ renderTable = function(upgrades_available, table_tiles, players, username, stack
       owner = parseInt(tile_data[3], 10);
       owner_data = window.players[owner].split(",");
       owner_name = owner_data[10];
-      return document.getElementById('upgrade_float_text').innerHTML += '<br>Owner: ' + owner_name;
+      return document.getElementById('upgrade_float_text').innerHTML += 'Owner: ' + owner_name;
     }
   });
 };
@@ -829,11 +829,60 @@ removeCostIncreases = function(id) {
 };
 
 upgrade_owner_number = function(id) {
-  return 0;
+  var tile_data, tile_upgrade_owner, x, y;
+  x = get_upgrade_x(id);
+  y = get_upgrade_y(id);
+  if (window.table_tiles[x][y] !== null) {
+    tile_data = window.table_tiles[x][y].split(',');
+    tile_upgrade_owner = parseInt(tile_data[3], 10);
+    return tile_upgrade_owner;
+  } else {
+    return -1;
+  }
+};
+
+get_upgrade_x = function(id) {
+  var i, j, k, l, tile_data, tile_upgrade_built;
+  for (i = k = 0; k <= 31; i = ++k) {
+    for (j = l = 0; l <= 31; j = ++l) {
+      if (window.table_tiles[i][j] !== null && window.table_tiles[i][j] !== void 0) {
+        tile_data = window.table_tiles[i][j].split(',');
+        tile_upgrade_built = parseInt(tile_data[2], 10);
+        if (tile_upgrade_built === id) {
+          return i;
+        }
+      }
+    }
+  }
+  return -1;
+};
+
+get_upgrade_y = function(id) {
+  var i, j, k, l, tile_data, tile_upgrade_built;
+  for (i = k = 0; k <= 31; i = ++k) {
+    for (j = l = 0; l <= 31; j = ++l) {
+      if (window.table_tiles[i][j] !== null && window.table_tiles[i][j] !== void 0) {
+        tile_data = window.table_tiles[i][j].split(',');
+        tile_upgrade_built = parseInt(tile_data[2], 10);
+        if (tile_upgrade_built === id) {
+          return j;
+        }
+      }
+    }
+  }
+  return -1;
 };
 
 get_highest_costed_resource = function(id) {
-  return 1;
+  if (id >= 0 && id <= 7) {
+    return 2;
+  } else if (id >= 8 && id <= 15) {
+    return 1;
+  } else if (id >= 16 && id <= 23) {
+    return 3;
+  } else if (id >= 24 && id <= 31) {
+    return 4;
+  }
 };
 
 region_closed = function(region) {
@@ -1027,6 +1076,20 @@ updater = {
       updater.processUpgradeSelect();
     } else if (message.message === 'push_upgrade_location_select') {
       updater.processUpgradeLocationSelect(parseInt(message.upgrade_id));
+    } else if (message.message === 'push_gain_any_combination_of_goods') {
+      updater.processGainAnyCombinationOfGoods(message);
+    } else if (message.message === 'bot_push_gain_any_one_good') {
+      updater.processBotGainAnyOneGood(message);
+    } else if (message.message === 'bot_select_resource_for_opponent_to_lose') {
+      updater.processBotSelectResourceForOpponentToLose(message);
+    } else if (message.message === 'on_buy_gain_any_one_good') {
+      updater.processOnBuyGainAnyOneGood(message);
+    } else if (message.message === 'on_buy_gain_any_one_good_from_list') {
+      updater.processOnBuyGainAnyOneGoodFromList(message);
+    } else if (message.message === 'on_buy_trade_in_resources_for_vp') {
+      updater.processOnBuyTradeInResourcesForVP(message);
+    } else if (message.message === 'bot_trade_in_resources_for_vp') {
+      updater.processBotTradeInResourcesForVP(message);
     }
     message.message = 'update_finished';
     return updater.socket.send(JSON.stringify(message));
@@ -1058,7 +1121,7 @@ updater = {
       var message;
       message = {};
       message.x = Math.floor(options.e.clientX / 45);
-      message.y = Math.floor(options.e.clientY / 45);
+      message.y = Math.floor((options.e.clientY - 22) / 45);
       message.message = 'upgrade_location_selected';
       message.upgrade_id = upgrade_id;
       window.canvas.off('mouse:up');
@@ -1167,6 +1230,307 @@ updater = {
       }
       return updater.updateProcessSpendFreely();
     }
+  },
+  processOnBuyTradeInResourcesForVP: function(message) {
+    var rate, text;
+    rate = parseInt(message.rate);
+    text = 'Trade in resources for VP at a ' + rate + ':1 rate' + ' <span style="color: #FFFF00;" onclick="updater.spendResourcesLimitless(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.spendResourcesLimitless(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.spendResourcesLimitless(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.spendResourcesLimitless(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.spendResourcesLimitless(4)">' + window.player_rare_metal + '</span>';
+    text = text + ' <button onClick="updater.spendResourcesLimitless(5)">Finished</button>';
+    document.getElementById('message').innerHTML = text;
+    window.spendFreelySpent = 0;
+    window.spendFreelyRate = rate;
+    return window.spendFreelyText = 'Trade in resources for VP at a ' + rate + ':1 rate';
+  },
+  updateProcessSpendFreelyLimitless: function() {
+    var text;
+    text = window.spendFreelyText + ' <span style="color: #FFFF00;" onclick="updater.spendResourcesLimitless(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.spendResourcesLimitless(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.spendResourcesLimitless(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.spendResourcesLimitless(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.spendResourcesLimitless(4)">' + window.player_rare_metal + '</span>';
+    text = text + ' <button onClick="updater.spendResourcesLimitless(5)">Finished</button>';
+    return document.getElementById('message').innerHTML = text;
+  },
+  updateProcessSpendFreelyLimitlessFinished: function() {
+    var message;
+    message = {};
+    message.message = 'on_buy_traded_in_resources_for_vp';
+    message.electricity = window.player_electricity;
+    message.water = window.player_water;
+    message.information = window.player_information;
+    message.metal = window.player_metal;
+    message.rare_metal = window.player_rare_metal;
+    message.spent = window.spendFreelySpent;
+    message.rate = window.spendFreelyRate;
+    return updater.socket.send(JSON.stringify(message));
+  },
+  spendResourcesLimitless: function(number) {
+    if (number === 0 && window.player_electricity > 0) {
+      window.player_electricity -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 1 && window.player_water > 0) {
+      window.player_water -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 2 && window.player_information > 0) {
+      window.player_information -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 3 && window.player_metal > 0) {
+      window.player_metal -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 4 && window.player_rare_metal > 0) {
+      window.player_rare_metal -= 1;
+      window.spendFreelySpent += 1;
+    }
+    if (number <= 4) {
+      return updater.updateProcessSpendFreelyLimitless();
+    } else {
+      return updater.updateProcessSpendFreelyLimitlessFinished();
+    }
+  },
+  processBotTradeInResourcesForVP: function(message) {
+    var rate, text;
+    rate = parseInt(message.rate);
+    text = 'Trade in resources for VP at a ' + rate + ':1 rate' + ' <span style="color: #FFFF00;" onclick="updater.spendResourcesLimitlessBot(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.spendResourcesLimitlessBot(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.spendResourcesLimitlessBot(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.spendResourcesLimitlessBot(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.spendResourcesLimitlessBot(4)">' + window.player_rare_metal + '</span>';
+    text = text + ' <button onClick="updater.spendResourcesLimitlessBot(5)">Finished</button>';
+    document.getElementById('message').innerHTML = text;
+    window.spendFreelySpent = 0;
+    window.spendFreelyRate = rate;
+    return window.spendFreelyText = 'Trade in resources for VP at a ' + rate + ':1 rate';
+  },
+  updateProcessSpendFreelyLimitlessBot: function() {
+    var text;
+    text = window.spendFreelyText + ' <span style="color: #FFFF00;" onclick="updater.spendResourcesLimitlessBot(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.spendResourcesLimitlessBot(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.spendResourcesLimitlessBot(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.spendResourcesLimitlessBot(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.spendResourcesLimitlessBot(4)">' + window.player_rare_metal + '</span>';
+    text = text + ' <button onClick="updater.spendResourcesLimitlessBot(5)">Finished</button>';
+    return document.getElementById('message').innerHTML = text;
+  },
+  updateProcessSpendFreelyLimitlessFinishedBot: function() {
+    var message;
+    message = {};
+    message.message = 'bot_traded_in_resources_for_vp';
+    message.electricity = window.player_electricity;
+    message.water = window.player_water;
+    message.information = window.player_information;
+    message.metal = window.player_metal;
+    message.rare_metal = window.player_rare_metal;
+    message.spent = window.spendFreelySpent;
+    message.rate = window.spendFreelyRate;
+    return updater.socket.send(JSON.stringify(message));
+  },
+  spendResourcesLimitlessBot: function(number) {
+    if (number === 0 && window.player_electricity > 0) {
+      window.player_electricity -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 1 && window.player_water > 0) {
+      window.player_water -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 2 && window.player_information > 0) {
+      window.player_information -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 3 && window.player_metal > 0) {
+      window.player_metal -= 1;
+      window.spendFreelySpent += 1;
+    } else if (number === 4 && window.player_rare_metal > 0) {
+      window.player_rare_metal -= 1;
+      window.spendFreelySpent += 1;
+    }
+    if (number <= 4) {
+      return updater.updateProcessSpendFreelyLimitlessBot();
+    } else {
+      return updater.updateProcessSpendFreelyLimitlessFinishedBot();
+    }
+  },
+  processGainAnyCombinationOfGoods: function(message) {
+    var count, text;
+    text = message.text + ' <span style="color: #FFFF00;" onclick="updater.gainResources(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.gainResources(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.gainResources(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.gainResources(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.gainResources(4)">' + window.player_rare_metal + '</span>';
+    document.getElementById('message').innerHTML = text;
+    count = parseInt(message.count);
+    window.gainFreelyGained = 0;
+    window.gainFreelyMax = count;
+    return window.gainFreelyText = message.text;
+  },
+  updateProcessGainFreely: function() {
+    var message, text;
+    if (window.gainFreelyGained < window.gainFreelyMax) {
+      text = window.gainFreelyText + ' <span style="color: #FFFF00;" onclick="updater.gainResources(0)">' + window.player_electricity + '</span>';
+      text = text + ' <span style="color: #00FFFF;" onclick="updater.gainResources(1)">' + window.player_water + '</span>';
+      text = text + ' <span style="color: #00E000;" onclick="updater.gainResources(2)">' + window.player_information + '</span>';
+      text = text + ' <span style="color: #808080;" onclick="updater.gainResources(3)">' + window.player_metal + '</span>';
+      text = text + ' <span style="color: #FF8000;" onclick="updater.gainResources(4)">' + window.player_rare_metal + '</span>';
+      return document.getElementById('message').innerHTML = text;
+    } else {
+      message = {};
+      message.message = 'gained_freely';
+      message.electricity = window.player_electricity;
+      message.water = window.player_water;
+      message.information = window.player_information;
+      message.metal = window.player_metal;
+      message.rare_metal = window.player_rare_metal;
+      return updater.socket.send(JSON.stringify(message));
+    }
+  },
+  gainResources: function(number) {
+    if (window.gainFreelyGained < window.gainFreelyMax) {
+      if (number === 0) {
+        window.player_electricity += 1;
+        window.gainFreelyGained += 1;
+      } else if (number === 1) {
+        window.player_water += 1;
+        window.gainFreelyGained += 1;
+      } else if (number === 2) {
+        window.player_information += 1;
+        window.gainFreelyGained += 1;
+      } else if (number === 3) {
+        window.player_metal += 1;
+        window.gainFreelyGained += 1;
+      } else if (number === 4) {
+        window.player_rare_metal += 1;
+        window.gainFreelyGained += 1;
+      }
+      return updater.updateProcessGainFreely();
+    }
+  },
+  processBotGainAnyOneGood: function(message) {
+    var count, text;
+    text = message.text + ' <span style="color: #FFFF00;" onclick="updater.botGainResource(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.botGainResource(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.botGainResource(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.botGainResource(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.botGainResource(4)">' + window.player_rare_metal + '</span>';
+    document.getElementById('message').innerHTML = text;
+    count = parseInt(message.count, 10);
+    return window.gainOneCount = count;
+  },
+  botGainResource: function(number) {
+    var message;
+    if (number === 0) {
+      window.player_electricity += window.gainOneCount;
+    } else if (number === 1) {
+      window.player_water += window.gainOneCount;
+    } else if (number === 2) {
+      window.player_information += window.gainOneCount;
+    } else if (number === 3) {
+      window.player_metal += window.gainOneCount;
+    } else if (number === 4) {
+      window.player_rare_metal += window.gainOneCount;
+    }
+    message = {};
+    message.message = 'bot_gained_any_one_good';
+    message.electricity = window.player_electricity;
+    message.water = window.player_water;
+    message.information = window.player_information;
+    message.metal = window.player_metal;
+    message.rare_metal = window.player_rare_metal;
+    return updater.socket.send(JSON.stringify(message));
+  },
+  processOnBuyGainAnyOneGood: function(message) {
+    var count, text;
+    text = message.text + ' <span style="color: #FFFF00;" onclick="updater.onBuyGainResource(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.onBuyGainResource(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.onBuyGainResource(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.onBuyGainResource(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.onBuyGainResource(4)">' + window.player_rare_metal + '</span>';
+    document.getElementById('message').innerHTML = text;
+    count = parseInt(message.count, 10);
+    return window.gainOneCount = count;
+  },
+  onBuyGainResource: function(number) {
+    var message;
+    if (number === 0) {
+      window.player_electricity += window.gainOneCount;
+    } else if (number === 1) {
+      window.player_water += window.gainOneCount;
+    } else if (number === 2) {
+      window.player_information += window.gainOneCount;
+    } else if (number === 3) {
+      window.player_metal += window.gainOneCount;
+    } else if (number === 4) {
+      window.player_rare_metal += window.gainOneCount;
+    }
+    message = {};
+    message.message = 'on_buy_gained_any_one_good';
+    message.electricity = window.player_electricity;
+    message.water = window.player_water;
+    message.information = window.player_information;
+    message.metal = window.player_metal;
+    message.rare_metal = window.player_rare_metal;
+    return updater.socket.send(JSON.stringify(message));
+  },
+  processOnBuyGainAnyOneGoodFromList: function(message) {
+    var count, text;
+    text = message.text;
+    if (message.electricity > 0) {
+      text = text + ' <span style="color: #FFFF00;" onclick="updater.onBuyGainResourceFromList(0)">' + window.player_electricity + '</span>';
+    }
+    if (message.water > 0) {
+      text = text + ' <span style="color: #00FFFF;" onclick="updater.onBuyGainResourceFromList(1)">' + window.player_water + '</span>';
+    }
+    if (message.information > 0) {
+      text = text + ' <span style="color: #00E000;" onclick="updater.onBuyGainResourceFromList(2)">' + window.player_information + '</span>';
+    }
+    if (message.metal > 0) {
+      text = text + ' <span style="color: #808080;" onclick="updater.onBuyGainResourceFromList(3)">' + window.player_metal + '</span>';
+    }
+    if (message.rare_metal > 0) {
+      text = text + ' <span style="color: #FF8000;" onclick="updater.onBuyGainResourceFromList(4)">' + window.player_rare_metal + '</span>';
+    }
+    document.getElementById('message').innerHTML = text;
+    count = parseInt(message.count, 10);
+    window.gainOneCount = count;
+    return window.message = message;
+  },
+  onBuyGainResourceFromList: function(number) {
+    var message;
+    if (number === 0) {
+      window.player_electricity += window.gainOneCount;
+    } else if (number === 1) {
+      window.player_water += window.gainOneCount;
+    } else if (number === 2) {
+      window.player_information += window.gainOneCount;
+    } else if (number === 3) {
+      window.player_metal += window.gainOneCount;
+    } else if (number === 4) {
+      window.player_rare_metal += window.gainOneCount;
+    }
+    message = window.message;
+    message.message = 'on_buy_gained_any_one_good_from_list';
+    message.electricity = window.player_electricity;
+    message.water = window.player_water;
+    message.information = window.player_information;
+    message.metal = window.player_metal;
+    message.rare_metal = window.player_rare_metal;
+    return updater.socket.send(JSON.stringify(message));
+  },
+  processBotSelectResourceForOpponentToLose: function(message) {
+    var text;
+    text = 'Select a resource for your opponents to lose:' + ' <span style="color: #FFFF00;" onclick="updater.botLoseOpponentResource(0)">' + window.player_electricity + '</span>';
+    text = text + ' <span style="color: #00FFFF;" onclick="updater.botLoseOpponentResource(1)">' + window.player_water + '</span>';
+    text = text + ' <span style="color: #00E000;" onclick="updater.botLoseOpponentResource(2)">' + window.player_information + '</span>';
+    text = text + ' <span style="color: #808080;" onclick="updater.botLoseOpponentResource(3)">' + window.player_metal + '</span>';
+    text = text + ' <span style="color: #FF8000;" onclick="updater.botLoseOpponentResource(4)">' + window.player_rare_metal + '</span>';
+    return document.getElementById('message').innerHTML = text;
+  },
+  botLoseOpponentResource: function(number) {
+    var message;
+    message = {};
+    message.message = 'bot_selected_resource_for_opponent_to_lose';
+    message.x = number;
+    return updater.socket.send(JSON.stringify(message));
   },
   processTileLay: function(message) {
     var group;
@@ -1463,8 +1827,8 @@ initiateUpgradeTypes = function() {
     types[i].category = "Bureaucracy";
   }
   names = ["Fusion Cooling", "Opt-Out Policy", "Terraforming Server", "Data Synergy", "Geolocational Satellites", "Population Metrics", "Data Correlation", "Server Megafarm", "Investment", "Buy Low", "Economic Efficiency", "Economic Ties", "Metal Markets", "Rapidfire Investment", "Global Market", "Market Buy-In", "Opiate", "Holonews", "Sensorial Immersion", "Stimvids", "Hydro-Entertainment Facility", "Biomechanoid Companion", "Virtual Matter Playground", "Total Immersion Envirosim", "Trade Agreement", "Customs", "Progressive Taxation", "Public Auction", "Electricity Tax", "Balanced Economy", "Sign in Triplicate", "The Hive"];
-  descriptions = ["At the end of the game, +1 VP if you have at least 1 other upgrade in this city.", "+1 VP per turn so long as there are no adjacent upgrades in this city.", "When bought, look at the top 20 land tiles and rearrange in any order.", "+1 VP. +2 VP for every adjacent non-data hosting upgrade in this city.", "When you buy this, go through the tile stack and remove four tiles of your", "+2 VP. +1 VP whenever a city is brought online.", "+3 information per turn.", "+1 VP per turn.", "Put two counters on this. Remove one each turn. When there are no more", "Gain 1 VP. Gain 5 of any one good immediately.", "Each upgrade you buy costs one less of any one resource (min. 1 of any", "At the end of the game, +1 VP for every 2 enclosed cities.", "Every turn, +2 metal.", "Pay 1 VP immediately. +8 VP at the beginning of the next turn.", "Each turn, +2 of any resource.", "+2 VP. +1 VP per Finance upgrade bought at the end of the game.", "You are not affected by cost increases.", "+2 VP", "When bought, trade in any number of resources. +1 VP / 3 resources.", "+4 VP", "+6 water immediately. +6 water on your next turn.", "+6 VP", "+7 of any one resource immediately. +7 of any one resource at the", "+8 VP", "Pay 4 resources at any time: +1 VP", "All upgrades for other players cost +1 of the resource they require the most.", "When bought, the player with the most VP loses 5 VP.", "Once per game, you may sell another upgrade for 5 VP.", "If you have the least electricity of any player, +3 electricity per turn.", "+2 VP at the end of the game for each upgrade category bought.", "Other players lose one resource of your choice at the beginning of each turn.", "+1 counter per turn. Remove two counters: If all upgrades in this city are"];
-  descriptions2 = ["", "", "", "", "choice. Play those instead of drawing on your next turn. Once per turn, you", "", "", "", "counters, gain 6 of any combination of goods.", "", "listed resource.)", "", "", "", "", "", "", "", "", "", "", "", "beginning of next turn.", "", "", "", "", "", "", "", "", "Bureaucracy, +3 VP"];
+  descriptions = ["At the end of the game, +1 VP if you have at least 1 other upgrade in this city.", "+1 VP per turn so long as there are no adjacent upgrades in this city.", "When bought, look at the top 20 land tiles and rearrange in any order.", "+1 VP. +2 VP for every adjacent non-data hosting upgrade in this city.", "When you buy this, go through the tile stack and remove four tiles of your", "+2 VP. +1 VP whenever a city is brought online.", "+3 information per turn.", "+1 VP per turn.", "Put two counters on this. Remove one each turn. When there are no more", "Gain 1 VP. Gain 5 of any one good immediately.", "When you buy an upgrade, gain 3 of any resource you paid as part of the", "At the end of the game, +1 VP for every 2 enclosed cities.", "Every turn, +2 metal.", "Pay 1 VP immediately. +8 VP at the beginning of the next turn.", "Each turn, +2 of any resource.", "+2 VP. +1 VP per Finance upgrade bought at the end of the game.", "You are not affected by cost increases.", "+2 VP", "When bought, trade in any number of resources. +1 VP / 3 resources.", "+4 VP", "+6 water immediately. +6 water on your next turn.", "+6 VP", "+7 of any one resource immediately. +7 of any one resource at the", "+8 VP", "Pay 4 resources at any time: +1 VP", "All upgrades for other players cost +2 of the resource they require the most.", "When bought, the player with the most VP loses 5 VP.", "Once per game, you may sell another upgrade for 5 VP.", "If you have the least electricity of any player, +3 electricity per turn.", "+2 VP at the end of the game for each upgrade category bought.", "Other players lose three resources of your choice at the beginning of each turn.", "+1 counter per turn. Remove two counters: If all upgrades in this city are"];
+  descriptions2 = ["", "", "", "", "choice. Play those instead of drawing on your next turn. Once per turn, you", "", "", "", "counters, gain 6 of any combination of goods.", "", "cost.", "", "", "", "", "", "", "", "", "", "", "", "beginning of next turn.", "", "", "", "", "", "", "", "", "Bureaucracy, +3 VP"];
   descriptions3 = ["", "", "", "", "may pay 1 information to gain 1 water.", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
   electricity = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 3, 3, 6, 4, 5, 4, 0, 0, 1, 1, 0, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0];
   water = [1, 1, 3, 3, 6, 4, 5, 4, 0, 0, 1, 1, 0, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
