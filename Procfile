@@ -1,1 +1,1 @@
-web: python ps2.py
+web: python ps2.py --port=$PORT
