@@ -449,6 +449,7 @@ class Game():
             self.stock_resources()
             self.lay_workers()
     def worker_placed(self,message):
+        # print message
         x = int(message['x'])
         y = int(message['y'])
         tile = self.table_tiles[x][y]
@@ -456,7 +457,7 @@ class Game():
             if i.is_first_player==True:
                 first_player = i
         if tile==None:
-            self.push_relay_worker(first_player)
+            self.push_relay_worker(self.players[self.worker_turn])
             return
         type = tile.tile_type
         if type==0 or type==2 or type==3 or type==4 or type==5 or type==6 or type==7 or type==9 or type>=11:
@@ -479,7 +480,7 @@ class Game():
                         # self.push_turn_end(first_player)
                         self.worker_pickup()
                         return
-        self.push_relay_worker(first_player)
+        self.push_relay_worker(self.players[self.worker_turn])
     def worker_pickup(self):
         for i in self.players:
             if i.is_first_player==True:
@@ -608,9 +609,9 @@ class Game():
     def bring_city_online(self,player_num):
         player = self.players[player_num]
         if (player.electricity+player.water+player.information+player.metal+player.rare_metal)<5:
-            return
+            self.next_event()
         if (self.cities_to_be_brought_online()==False):
-            return
+            self.next_event()
         for i in self.players:
             if i!=player:
                 self.push_message(i,'Other player bringing city online.')
@@ -619,9 +620,9 @@ class Game():
     def construct_worker(self,player_num):
         player = self.players[player_num]
         if (player.electricity+player.water+player.information+player.metal+player.rare_metal)<15:
-            return
+            self.next_event()
         if player.total_workers>=5:
-            return
+            self.next_event()
         for i in self.players:
             if i!=player:
                 self.push_message(i,'Other player choosing whether or not to construct a robot.')
@@ -630,7 +631,7 @@ class Game():
     def build_upgrade(self,player_num):
         player = self.players[player_num]
         if (player.electricity+player.water+player.information+player.metal+player.rare_metal==0):
-            return
+            self.next_event()
         for i in self.players:
             if i!=player:
                 self.push_message(i,'Other player building an upgrade.')
@@ -921,9 +922,9 @@ class Game():
             for i in cornerstones:
                 regions.append(self.get_region(i.x,i.y))
         return regions
-    def push_relay_worker(self,first_player):
-        self.push_message(first_player,"Place your robot.")
-        self.push_worker_lay(first_player,True)
+    def push_relay_worker(self,i):
+        self.push_message(i,"Place your robot.")
+        self.push_worker_lay(i,True)
     def rotate_worker_turn(self):
         initial_worker_turn=self.worker_turn
         self.worker_turn+=1
