@@ -1648,16 +1648,16 @@ updater = {
     if (message.active === true) {
       window.canvas.on('mouse:move', function(options) {
         var x, y;
-        x = options.e.clientX - 22;
-        y = options.e.clientY - 22;
+        x = options.e.clientX - 30;
+        y = options.e.clientY - 50;
         updater.circle.left = x;
         updater.circle.top = y;
         return window.canvas.renderAll();
       });
       return window.canvas.on('mouse:up', function(options) {
         var x, y;
-        x = Math.floor(options.e.clientX / 45);
-        y = Math.floor(options.e.clientY / 45);
+        x = Math.floor((options.e.clientX-8) / 45);
+        y = Math.floor((options.e.clientY-28) / 45);
         message = {};
         message.message = 'worker_placed';
         message.x = x;
